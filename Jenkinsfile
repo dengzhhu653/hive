@@ -85,7 +85,7 @@ ls -l
 set -x
 . /etc/profile.d/confs.sh
 export USER="`whoami`"
-export MAVEN_OPTS="-Xmx2g"
+export MAVEN_OPTS="-Xmx4g"
 export -n HIVE_CONF_DIR
 cp $SETTINGS .git/settings.xml
 OPTS=" -s $PWD/.git/settings.xml -B -Dtest.groups= "
