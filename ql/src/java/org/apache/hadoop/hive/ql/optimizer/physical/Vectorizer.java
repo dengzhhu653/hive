@@ -2594,7 +2594,9 @@ public class Vectorizer implements PhysicalPlanResolver {
       return false;
     }
     List<ExprNodeDesc> keyExprs = desc.getKeys().get(posBigTable);
-    if (!validateExprNodeDesc(keyExprs, "Key")) {
+    if (!validateExprNodeDescNoComplex(keyExprs, "Key")) {
+      // Vectorization for join keys of complex type is not supported.
+      // https://issues.apache.org/jira/browse/HIVE-24989
       return false;
     }
     List<ExprNodeDesc> valueExprs = desc.getExprs().get(posBigTable);
@@ -2895,6 +2897,7 @@ public class Vectorizer implements PhysicalPlanResolver {
       }
     }
 
+    boolean[] distinctEvaluator = vectorPTFDesc.getEvaluatorsAreDistinct();
     String[] evaluatorFunctionNames = vectorPTFDesc.getEvaluatorFunctionNames();
     final int count = evaluatorFunctionNames.length;
     WindowFrameDef[] evaluatorWindowFrameDefs = vectorPTFDesc.getEvaluatorWindowFrameDefs();
@@ -2907,6 +2910,12 @@ public class Vectorizer implements PhysicalPlanResolver {
         setOperatorIssue(functionName + " not in supported functions " + VectorPTFDesc.supportedFunctionNames);
         return false;
       }
+
+      if (distinctEvaluator[i] && !supportedFunctionType.isSupportDistinct()) {
+        setOperatorIssue(functionName + " distinct is not supported ");
+        return false;
+      }
+
       WindowFrameDef windowFrameDef = evaluatorWindowFrameDefs[i];
       if (!windowFrameDef.isStartUnbounded()) {
         setOperatorIssue(functionName + " only UNBOUNDED start frame is supported");

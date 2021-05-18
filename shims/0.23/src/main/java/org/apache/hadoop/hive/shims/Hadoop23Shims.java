@@ -107,6 +107,8 @@ import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.test.MiniTezCluster;
 
+import static org.apache.hadoop.tools.DistCpConstants.CONF_LABEL_DISTCP_JOB_ID;
+
 /**
  * Implemention of shims against Hadoop 0.23.0.
  */
@@ -409,14 +411,7 @@ public class Hadoop23Shims extends HadoopShimsSecure {
       conf.setInt(YarnConfiguration.YARN_MINICLUSTER_NM_PMEM_MB, 512);
       conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 128);
       conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB, 512);
-      // Overrides values from the hive/tez-site.
-      conf.setInt("hive.tez.container.size", 128);
-      conf.setInt(TezConfiguration.TEZ_AM_RESOURCE_MEMORY_MB, 128);
-      conf.setInt(TezConfiguration.TEZ_TASK_RESOURCE_MEMORY_MB, 128);
-      conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB, 24);
-      conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB, 10);
-      conf.setFloat(TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_FETCH_BUFFER_PERCENT, 0.4f);
-      conf.setInt(TezConfiguration.TEZ_COUNTERS_MAX, 1024);
+
       conf.set("fs.defaultFS", nameNode);
       conf.set("tez.am.log.level", "DEBUG");
       conf.set(MRJobConfig.MR_AM_STAGING_DIR, "/apps_staging_dir");
@@ -446,16 +441,9 @@ public class Hadoop23Shims extends HadoopShimsSecure {
     @Override
     public void setupConfiguration(Configuration conf) {
       Configuration config = mr.getConfig();
-      for (Map.Entry<String, String> pair: config) {
+      for (Map.Entry<String, String> pair : config) {
         conf.set(pair.getKey(), pair.getValue());
       }
-      // Overrides values from the hive/tez-site.
-      conf.setInt("hive.tez.container.size", 128);
-      conf.setInt(TezConfiguration.TEZ_AM_RESOURCE_MEMORY_MB, 128);
-      conf.setInt(TezConfiguration.TEZ_TASK_RESOURCE_MEMORY_MB, 128);
-      conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB, 24);
-      conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB, 10);
-      conf.setFloat(TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_FETCH_BUFFER_PERCENT, 0.4f);
       if (isLlap) {
         conf.set("hive.llap.execution.mode", "all");
       }
@@ -1169,10 +1157,10 @@ public class Hadoop23Shims extends HadoopShimsSecure {
 
     // Creates the command-line parameters for distcp
     List<String> params = constructDistCpParams(srcPaths, dst, conf);
-
+    DistCp distcp = null;
     try {
       conf.setBoolean("mapred.mapper.new-api", true);
-      DistCp distcp = new DistCp(conf, options);
+      distcp = new DistCp(conf, options);
 
       // HIVE-13704 states that we should use run() instead of execute() due to a hadoop known issue
       // added by HADOOP-10459
@@ -1184,6 +1172,13 @@ public class Hadoop23Shims extends HadoopShimsSecure {
     } catch (Exception e) {
       throw new IOException("Cannot execute DistCp process: " + e, e);
     } finally {
+      // Set the job id from distCp conf to the callers configuration.
+      if (distcp != null) {
+        String jobId = distcp.getConf().get(CONF_LABEL_DISTCP_JOB_ID);
+        if (jobId != null) {
+          conf.set(CONF_LABEL_DISTCP_JOB_ID, jobId);
+        }
+      }
       conf.setBoolean("mapred.mapper.new-api", false);
     }
   }

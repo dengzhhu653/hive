@@ -19,10 +19,15 @@
 package org.apache.hive.hcatalog.listener;
 
 import org.apache.hadoop.hive.common.TableName;
+import org.apache.hadoop.hive.metastore.api.AddPackageRequest;
+import org.apache.hadoop.hive.metastore.api.DropPackageRequest;
+import org.apache.hadoop.hive.metastore.api.GetPackageRequest;
 import org.apache.hadoop.hive.metastore.api.GetPartitionsFilterSpec;
 import org.apache.hadoop.hive.metastore.api.GetProjectionsSpec;
 import org.apache.hadoop.hive.metastore.api.ISchemaName;
+import org.apache.hadoop.hive.metastore.api.ListPackageRequest;
 import org.apache.hadoop.hive.metastore.api.ListStoredProcedureRequest;
+import org.apache.hadoop.hive.metastore.api.Package;
 import org.apache.hadoop.hive.metastore.api.SQLAllTableConstraints;
 import org.apache.hadoop.hive.metastore.api.SchemaVersionDescriptor;
 import org.apache.hadoop.hive.metastore.api.Catalog;
@@ -46,6 +51,7 @@ import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.ColumnStatistics;
 import org.apache.hadoop.hive.metastore.api.CreationMetadata;
 import org.apache.hadoop.hive.metastore.api.CurrentNotificationEventId;
+import org.apache.hadoop.hive.metastore.api.DataConnector;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.FileMetadataExprType;
@@ -240,6 +246,32 @@ public class DummyRawStoreFailEvent implements RawStore, Configurable {
   }
 
   @Override
+  public List<String> getAllDataConnectorNames() throws MetaException {
+    return objectStore.getAllDataConnectorNames();
+  }
+
+  @Override
+  public DataConnector getDataConnector(String connectorName) throws NoSuchObjectException {
+    return objectStore.getDataConnector(connectorName);
+  }
+
+  @Override
+  public boolean alterDataConnector(String connectorName, DataConnector connector)
+      throws MetaException, NoSuchObjectException {
+    return objectStore.alterDataConnector(connectorName, connector);
+  }
+
+  @Override
+  public boolean dropDataConnector(String connector) throws MetaException, NoSuchObjectException {
+    return objectStore.dropDataConnector(connector);
+  }
+
+  @Override
+  public void createDataConnector(DataConnector connector) throws MetaException, InvalidObjectException {
+    objectStore.createDataConnector(connector);
+  }
+
+  @Override
   public boolean createType(Type type) {
     return objectStore.createType(type);
   }
@@ -288,6 +320,12 @@ public class DummyRawStoreFailEvent implements RawStore, Configurable {
   public Table getTable(String catName, String dbName, String tableName,
                         String writeIdList) throws MetaException {
     return objectStore.getTable(catName, dbName, tableName, writeIdList);
+  }
+
+  @Override
+  public Table getTable(String catalogName, String dbName, String tableName, String writeIdList, long tableId)
+      throws MetaException {
+    return objectStore.getTable(catalogName, dbName, tableName, writeIdList, tableId);
   }
 
   @Override
@@ -384,8 +422,8 @@ public class DummyRawStoreFailEvent implements RawStore, Configurable {
 
   @Override
   public List<Table> getTableObjectsByName(String catName, String dbName, List<String> tableNames,
-          GetProjectionsSpec projectionSpec) throws MetaException, UnknownDBException {
-    return objectStore.getTableObjectsByName(catName, dbName, tableNames, projectionSpec);
+          GetProjectionsSpec projectionSpec, String tablePattern) throws MetaException, UnknownDBException {
+    return objectStore.getTableObjectsByName(catName, dbName, tableNames, projectionSpec, tablePattern);
   }
 
   @Override
@@ -1431,18 +1469,38 @@ public class DummyRawStoreFailEvent implements RawStore, Configurable {
   }
 
   @Override
-  public StoredProcedure getStoredProcedure(String catName, String db, String name) throws MetaException, NoSuchObjectException {
+  public StoredProcedure getStoredProcedure(String catName, String db, String name) throws MetaException {
     return objectStore.getStoredProcedure(catName, db, name);
   }
 
   @Override
-  public void dropStoredProcedure(String catName, String dbName, String funcName) throws MetaException, NoSuchObjectException {
+  public void dropStoredProcedure(String catName, String dbName, String funcName) throws MetaException {
     objectStore.dropStoredProcedure(catName, dbName, funcName);
   }
 
   @Override
   public List<String> getAllStoredProcedures(ListStoredProcedureRequest request) {
     return objectStore.getAllStoredProcedures(request);
+  }
+
+  @Override
+  public void addPackage(AddPackageRequest request) throws MetaException, NoSuchObjectException {
+    objectStore.addPackage(request);
+  }
+
+  @Override
+  public Package findPackage(GetPackageRequest request) {
+    return objectStore.findPackage(request);
+  }
+
+  @Override
+  public List<String> listPackages(ListPackageRequest request) {
+    return objectStore.listPackages(request);
+  }
+
+  @Override
+  public void dropPackage(DropPackageRequest request) {
+    objectStore.dropPackage(request);
   }
 
 }
