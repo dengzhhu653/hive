@@ -13999,6 +13999,7 @@ public class ObjectStore implements RawStore, Configurable {
       returnList.add(MReplicationMetrics.toThrift(mReplicationMetric));
     }
     ret.setReplicationMetricList(returnList);
+    query.closeAll();
     return ret;
   }
 
