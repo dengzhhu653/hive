@@ -9221,7 +9221,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
   @SuppressWarnings("nls")
   private Operator genJoinReduceSinkChild(ExprNodeDesc[] joinKeys,
-                                          Operator<?> parent, String[] srcs, int tag) throws SemanticException {
+                                          Operator<?> parent, int tag) throws SemanticException {
 
     Operator dummy = Operator.createDummy();  // dummy for backtracking
     dummy.setParentOperators(Arrays.asList(parent));
@@ -9323,8 +9323,6 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
       translatorMap.put(oldName, newName);
     }
 
-    RowSchema defaultRs = new RowSchema(outputRR.getColumnInfos());
-
     List<ColumnInfo> newColumnInfos = new ArrayList<ColumnInfo>();
     for (ColumnInfo ci : outputRR.getColumnInfos()) {
       if (translatorMap.containsKey(ci.getInternalName())) {
@@ -9339,7 +9337,9 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     rsOp.setValueIndex(index);
     rsOp.setColumnExprMap(colExprMap);
-    rsOp.setInputAliases(srcs);
+    List<String> inputAliaes= new ArrayList<>(parent.getSchema().getTableNames());
+    Collections.sort(inputAliaes);
+    rsOp.setInputAliases(inputAliaes.toArray(new String[0]));
     return rsOp;
   }
 
@@ -9399,11 +9399,10 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     for (int i = 0; i < srcOps.length; i++) {
       // generate a ReduceSink operator for the join
-      String[] srcs = baseSrc[i] != null ? new String[] {baseSrc[i]} : joinTree.getLeftAliases();
       if (!isCBOExecuted()) {
         srcOps[i] = genNotNullFilterForJoinSourcePlan(qb, srcOps[i], joinTree, joinKeys[i]);
       }
-      srcOps[i] = genJoinReduceSinkChild(joinKeys[i], srcOps[i], srcs, joinTree.getNextTag());
+      srcOps[i] = genJoinReduceSinkChild(joinKeys[i], srcOps[i], joinTree.getNextTag());
     }
 
     Operator<?> topOp = genJoinOperatorChildren(joinTree, joinSrcOp, srcOps, omitOpts, joinKeys);
