@@ -604,14 +604,16 @@ public class HiveConf extends Configuration {
         false, "Should create single copy task for all the external tables "
         + "within the database default location for external tables, Would require more memory "
         + "for preparing the initial listing, Should be used if the memory "
-        + "requirements can be fulfilled."),
+        + "requirements can be fulfilled. If any specific configuration needs to be passed for these copy task it can"
+        + " be specified using the prefix hive.dbpath."),
     REPL_EXTERNAL_WAREHOUSE_SINGLE_COPY_TASK_PATHS("hive.repl.external.warehouse.single.copy.task.paths",
         "", "Comma seperated list of paths for which single copy task shall be created for all the external tables "
         + "within the locations Would require more memory for preparing the initial listing, Should be used if the memory "
         + "requirements can be fulfilled. If the directory contains data not part of the database, that data would "
         + "also get copied, so only locations which contains tables only belonging to the same database should be "
         + "provided. This has no effect in case of table level replication or if hive.repl.bootstrap.external.tables "
-        + "isn't enabled."),
+        + "isn't enabled. If any specific configuration needs to be passed for these copy task it can be specified "
+        + "using the prefix hive.dbpath."),
     REPL_INCLUDE_AUTHORIZATION_METADATA("hive.repl.include.authorization.metadata", false,
             "This configuration will enable security and authorization related metadata along "
                     + "with the hive data and metadata replication. "),
@@ -686,6 +688,8 @@ public class HiveConf extends Configuration {
         + "data copy, the target data is overwritten and the modifications are removed and the copy is again "
         + "attempted using the snapshot based approach. If disabled, the replication will fail in case the target is "
         + "modified."),
+    REPL_STATS_TOP_EVENTS_COUNTS("hive.repl.stats.events.count", 5,
+        "Number of top costliest events that needs to maintained per event type for the replication statistics."),
     LOCALSCRATCHDIR("hive.exec.local.scratchdir",
         "${system:java.io.tmpdir}" + File.separator + "${system:user.name}",
         "Local scratch space for Hive jobs"),
@@ -2215,8 +2219,13 @@ public class HiveConf extends Configuration {
       "This value controls whether date type in Parquet files was written using the hybrid or proleptic\n" +
       "calendar. Hybrid is the default."),
     HIVE_PARQUET_TIMESTAMP_LEGACY_CONVERSION_ENABLED("hive.parquet.timestamp.legacy.conversion.enabled", true,
-      "This value controls whether we use former Java time API to convert between timezones on files where timezone\n" +
-      "is not encoded in the metadata. This is for debugging."),
+    "Whether to use former Java date/time APIs to convert between timezones when reading timestamps from " +
+        "Parquet files. The property has no effect when the file contains explicit metadata about the conversion " +
+        "used to write the data; in this case reading conversion is chosen based on the metadata."),
+    HIVE_PARQUET_TIMESTAMP_WRITE_LEGACY_CONVERSION_ENABLED("hive.parquet.timestamp.write.legacy.conversion.enabled", false,
+        "Whether to use former Java date/time APIs to convert between timezones when writing timestamps in " +
+        "Parquet files. Once data are written to the file the effect is permanent (also reflected in the metadata)." +
+        "Changing the value of this property affects only new data written to the file."),
     HIVE_AVRO_TIMESTAMP_SKIP_CONVERSION("hive.avro.timestamp.skip.conversion", false,
         "Some older Hive implementations (pre-3.1) wrote Avro timestamps in a UTC-normalized" +
         "manner, while from version 3.1 until now Hive wrote time zone agnostic timestamps. " +
@@ -2689,6 +2698,10 @@ public class HiveConf extends Configuration {
 
     HIVE_OPTIMIZE_HMS_QUERY_CACHE_ENABLED("hive.optimize.metadata.query.cache.enabled", true,
         "This property enables caching metadata for repetitive requests on a per-query basis"),
+
+    HIVE_OPTIMIZE_VIEW_CACHE_ENABLED("hive.optimize.view.tables.cache.enabled", true,
+        "This property enables caching of views and their underlying tables. The cache in memory may be stale, but "
+            + " provides an optimization if it is accurate."),
 
     // CTE
     HIVE_CTE_MATERIALIZE_THRESHOLD("hive.optimize.cte.materialize.threshold", 3,
@@ -3724,6 +3737,9 @@ public class HiveConf extends Configuration {
         "SSL certificate keystore password for HiveServer2 WebUI."),
     HIVE_SERVER2_WEBUI_SSL_KEYSTORE_TYPE("hive.server2.webui.keystore.type", "",
         "SSL certificate keystore type for HiveServer2 WebUI."),
+    HIVE_SERVER2_WEBUI_SSL_EXCLUDE_CIPHERSUITES("hive.server2.webui.exclude.ciphersuites", "",
+        "SSL a list of exclude cipher suite names or regular expressions separated by comma"
+        + " for HiveServer2 WebUI."),
     HIVE_SERVER2_WEBUI_SSL_KEYMANAGERFACTORY_ALGORITHM("hive.server2.webui.keymanagerfactory.algorithm",
         "","SSL certificate key manager factory algorithm for HiveServer2 WebUI."),
     HIVE_SERVER2_WEBUI_USE_SPNEGO("hive.server2.webui.use.spnego", false,
@@ -4170,9 +4186,14 @@ public class HiveConf extends Configuration {
     HIVE_SERVER2_SSL_KEYSTORE_PASSWORD("hive.server2.keystore.password", "",
         "SSL certificate keystore password."),
     HIVE_SERVER2_SSL_KEYSTORE_TYPE("hive.server2.keystore.type", "",
-            "SSL certificate keystore type."),
+        "SSL certificate keystore type."),
     HIVE_SERVER2_SSL_KEYMANAGERFACTORY_ALGORITHM("hive.server2.keymanagerfactory.algorithm", "",
-            "SSL certificate keystore algorithm."),
+        "SSL certificate keystore algorithm."),
+    HIVE_SERVER2_SSL_HTTP_EXCLUDE_CIPHERSUITES("hive.server2.http.exclude.ciphersuites", "",
+        "SSL a list of exclude cipher suite names or regular expressions separated by comma "
+        + "for HiveServer2 http server."),
+    HIVE_SERVER2_SSL_BINARY_INCLUDE_CIPHERSUITES("hive.server2.binary.include.ciphersuites", "",
+        "SSL a list of include cipher suite names separated by colon for HiveServer2 binary Cli Server"),
     HIVE_SERVER2_BUILTIN_UDF_WHITELIST("hive.server2.builtin.udf.whitelist", "",
         "Comma separated list of builtin udf names allowed in queries.\n" +
         "An empty whitelist allows all builtin udfs to be executed. " +
