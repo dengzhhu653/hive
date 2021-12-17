@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.annotation.MetastoreUnitTest;
+import org.apache.hadoop.hive.metastore.api.CreateTableRequest;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -118,7 +119,9 @@ public class TestHiveMetaStoreWithEnvironmentContext {
     CreateDatabaseEvent dbEvent = (CreateDatabaseEvent)(notifyList.get(listSize - 1));
     assert dbEvent.getStatus();
 
-    msc.createTable(table, envContext);
+    CreateTableRequest req = new CreateTableRequest(table);
+    req.setEnvContext(envContext);
+    msc.createTable(req);
     listSize++;
     assertEquals(notifyList.size(), listSize);
     CreateTableEvent tblEvent = (CreateTableEvent)(notifyList.get(listSize - 1));

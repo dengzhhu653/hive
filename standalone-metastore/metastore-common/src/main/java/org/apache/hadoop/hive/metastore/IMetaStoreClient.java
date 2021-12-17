@@ -36,7 +36,10 @@ import org.apache.hadoop.hive.metastore.annotation.NoReconnect;
 import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.metastore.api.Package;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.hive.metastore.utils.MetaStoreUtils;
 import org.apache.thrift.TException;
+
+import static org.apache.hadoop.hive.metastore.utils.MetaStoreUtils.shrinkMaxtoShort;
 
 /**
  * Wrapper around hive metastore thrift api
@@ -143,13 +146,20 @@ public interface IMetaStoreClient {
       throws NoSuchObjectException, InvalidOperationException, MetaException, TException;
 
   /**
+   * Get the default catalog
+   */
+  String getDefaultCatalog() throws TException;
+
+  /**
    * Get the names of all databases in the default catalog that match the given pattern.
    * @param databasePattern pattern for the database name to patch
    * @return List of database names.
    * @throws MetaException error accessing RDBMS.
    * @throws TException thrift transport error
    */
-  List<String> getDatabases(String databasePattern) throws MetaException, TException;
+  default List<String> getDatabases(String databasePattern) throws MetaException, TException {
+    return getDatabases(getDefaultCatalog(), databasePattern);
+  }
 
   /**
    * Get all databases in a catalog whose names match a pattern.
@@ -168,7 +178,9 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing RDBMS.
    * @throws TException thrift transport error
    */
-  List<String> getAllDatabases() throws MetaException, TException;
+  default List<String> getAllDatabases() throws MetaException, TException {
+    return getAllDatabases(getDefaultCatalog());
+  }
 
   /**
    * Get all databases in a catalog.
@@ -189,8 +201,15 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @throws UnknownDBException indicated database to search in does not exist.
    */
-  List<String> getTables(String dbName, String tablePattern)
-      throws MetaException, TException, UnknownDBException;
+  default List<String> getTables(String dbName, String tablePattern)
+      throws MetaException, TException, UnknownDBException {
+    try {
+      return getTables(getDefaultCatalog(), dbName, tablePattern);
+    } catch (Exception e) {
+      MetaStoreUtils.throwMetaException(e);
+    }
+    return null;
+  }
 
   /**
    * Get the names of all tables in the specified database that satisfy the supplied
@@ -206,7 +225,6 @@ public interface IMetaStoreClient {
   List<String> getTables(String catName, String dbName, String tablePattern)
       throws MetaException, TException, UnknownDBException;
 
-
   /**
    * Get the names of all tables in the specified database that satisfy the supplied
    * table name pattern and table type (MANAGED_TABLE || EXTERNAL_TABLE || VIRTUAL_VIEW)
@@ -218,8 +236,10 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @throws UnknownDBException indicated database does not exist.
    */
-  List<String> getTables(String dbName, String tablePattern, TableType tableType)
-      throws MetaException, TException, UnknownDBException;
+  default List<String> getTables(String dbName, String tablePattern, TableType tableType)
+      throws MetaException, TException, UnknownDBException {
+    return getTables(getDefaultCatalog(), dbName, tablePattern, tableType);
+  }
 
   /**
    * Get the names of all tables in the specified database that satisfy the supplied
@@ -270,8 +290,10 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @throws UnknownDBException no such database
    */
-  List<String> getMaterializedViewsForRewriting(String dbName)
-      throws MetaException, TException, UnknownDBException;
+  default List<String> getMaterializedViewsForRewriting(String dbName)
+      throws MetaException, TException, UnknownDBException {
+    return getMaterializedViewsForRewriting(getDefaultCatalog(), dbName);
+  }
 
   /**
    * Get materialized views that have rewriting enabled.
@@ -297,8 +319,10 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @throws UnknownDBException No databases match the provided pattern.
    */
-  List<TableMeta> getTableMeta(String dbPatterns, String tablePatterns, List<String> tableTypes)
-      throws MetaException, TException, UnknownDBException;
+  default List<TableMeta> getTableMeta(String dbPatterns, String tablePatterns, List<String> tableTypes)
+      throws MetaException, TException, UnknownDBException {
+    return getTableMeta(getDefaultCatalog(), dbPatterns, tablePatterns, tableTypes);
+  }
 
   /**
    * Fetches just table name and comments.  Useful when you need full table name
@@ -325,7 +349,9 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @throws UnknownDBException No databases match the provided pattern.
    */
-  List<String> getAllTables(String dbName) throws MetaException, TException, UnknownDBException;
+  default List<String> getAllTables(String dbName) throws MetaException, TException, UnknownDBException {
+    return getAllTables(getDefaultCatalog(), dbName);
+  }
 
   /**
    * Get the names of all tables in the specified database.
@@ -378,8 +404,10 @@ public interface IMetaStoreClient {
    * @throws UnknownDBException no such database
    * @throws TException thrift transport error
    */
-  List<String> listTableNamesByFilter(String dbName, String filter, short maxTables)
-      throws TException, InvalidOperationException, UnknownDBException;
+  default List<String> listTableNamesByFilter(String dbName, String filter, short maxTables)
+      throws TException, InvalidOperationException, UnknownDBException {
+    return listTableNamesByFilter(getDefaultCatalog(), dbName, filter, maxTables);
+  }
 
   /**
    * Get a list of table names that match a filter.
@@ -443,9 +471,11 @@ public interface IMetaStoreClient {
    *           A thrift communication error occurred
    *
    */
-  void dropTable(String dbname, String tableName, boolean deleteData,
+  default void dropTable(String dbname, String tableName, boolean deleteData,
       boolean ignoreUnknownTab) throws MetaException, TException,
-      NoSuchObjectException;
+      NoSuchObjectException {
+    dropTable(getDefaultCatalog(), dbname, tableName, deleteData, ignoreUnknownTab, false);
+  }
 
   /**
    * Drop the table.
@@ -468,9 +498,11 @@ public interface IMetaStoreClient {
    *           A thrift communication error occurred
    */
   @Deprecated // TODO: deprecate all methods without a catalog here; a single layer (e.g. Hive.java) should handle current-catalog
-  void dropTable(String dbname, String tableName, boolean deleteData,
+  default void dropTable(String dbname, String tableName, boolean deleteData,
       boolean ignoreUnknownTab, boolean ifPurge) throws MetaException, TException,
-      NoSuchObjectException;
+      NoSuchObjectException {
+    dropTable(getDefaultCatalog(), dbname, tableName, deleteData, ignoreUnknownTab, ifPurge);
+  }
 
   /**
    * Drop the table.
@@ -486,8 +518,10 @@ public interface IMetaStoreClient {
    * @throws TException
    *           A thrift communication error occurred
    */
-  void dropTable(String dbname, String tableName)
-      throws MetaException, TException, NoSuchObjectException;
+  default void dropTable(String dbname, String tableName)
+      throws MetaException, TException, NoSuchObjectException {
+    dropTable(getDefaultCatalog(), dbname, tableName, true, true, false);
+  }
 
   /**
    * Drop a table.
@@ -555,10 +589,14 @@ public interface IMetaStoreClient {
    * @throws MetaException Failure in the RDBMS or storage
    * @throws TException Thrift transport exception
    */
-  void truncateTable(String dbName, String tableName, List<String> partNames) throws MetaException, TException;
+  default void truncateTable(String dbName, String tableName, List<String> partNames) throws MetaException, TException {
+    truncateTable(dbName, tableName, partNames, null, -1);
+  }
 
-  void truncateTable(String dbName, String tableName, List<String> partNames,
-      String validWriteIds, long writeId) throws TException;
+  default void truncateTable(String dbName, String tableName, List<String> partNames,
+      String validWriteIds, long writeId) throws TException {
+    truncateTable(dbName, tableName, partNames, validWriteIds, writeId, true);
+  }
 
   void truncateTable(String dbName, String tableName, List<String> partNames,
       String validWriteIds, long writeId, boolean deleteData) throws TException;
@@ -595,8 +633,10 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @throws UnknownDBException the indicated database does not exist.
    */
-  boolean tableExists(String databaseName, String tableName)
-      throws MetaException, TException, UnknownDBException;
+ default boolean tableExists(String databaseName, String tableName)
+      throws MetaException, TException, UnknownDBException {
+    return tableExists(getDefaultCatalog(), databaseName, tableName);
+  }
 
   /**
    * Check whether a table exists.
@@ -619,8 +659,10 @@ public interface IMetaStoreClient {
    * @throws MetaException Could not fetch the database
    * @throws TException A thrift communication error occurred
    */
-  Database getDatabase(String databaseName)
-      throws NoSuchObjectException, MetaException, TException;
+  default Database getDatabase(String databaseName)
+      throws NoSuchObjectException, MetaException, TException {
+    return getDatabase(getDefaultCatalog(), databaseName);
+  }
 
   /**
    * Get a database.
@@ -651,30 +693,12 @@ public interface IMetaStoreClient {
    *           In case the table wasn't found.
    */
   @Deprecated
-  Table getTable(String dbName, String tableName) throws MetaException,
-      TException, NoSuchObjectException;
-
-  /**
-   * Get a table object in the default catalog.
-   * @deprecated use getTable(GetTableRequest getTableRequest)
-   * @param dbName
-   *          The database the table is located in.
-   * @param tableName
-   *          Name of the table to fetch.
-   * @param getColumnStats
-   *          get the column stats, if available, when true
-   * @param engine engine sending the request
-   * @return An object representing the table.
-   * @throws MetaException
-   *           Could not fetch the table
-   * @throws TException
-   *           A thrift communication error occurred
-   * @throws NoSuchObjectException
-   *           In case the table wasn't found.
-   */
-  @Deprecated
-  Table getTable(String dbName, String tableName, boolean getColumnStats, String engine) throws MetaException,
-          TException, NoSuchObjectException;
+  default Table getTable(String dbName, String tableName) throws MetaException,
+      TException, NoSuchObjectException {
+    GetTableRequest request = new GetTableRequest(dbName, tableName);
+    request.setCatName(getDefaultCatalog());
+    return getTable(request);
+  }
 
   /**
    * Get a table object.
@@ -687,7 +711,11 @@ public interface IMetaStoreClient {
    * @throws TException general thrift error.
    */
   @Deprecated
-  Table getTable(String catName, String dbName, String tableName) throws MetaException, TException;
+  default Table getTable(String catName, String dbName, String tableName) throws MetaException, TException {
+    GetTableRequest request = new GetTableRequest(dbName, tableName);
+    request.setCatName(getDefaultCatalog());
+    return getTable(request);
+  }
 
   /**
    * Get a table object.
@@ -701,25 +729,13 @@ public interface IMetaStoreClient {
    * @throws TException general thrift error.
    */
   @Deprecated
-  Table getTable(String catName, String dbName, String tableName,
-                        String validWriteIdList) throws TException;
-
-  /**
-   * Get a table object.
-   * @deprecated use getTable(GetTableRequest getTableRequest)
-   * @param catName catalog the table is in.
-   * @param dbName database the table is in.
-   * @param tableName table name.
-   * @param validWriteIdList applicable snapshot
-   * @param getColumnStats get the column stats, if available, when true
-   * @param engine engine sending the request
-   * @return table object.
-   * @throws MetaException Something went wrong, usually in the RDBMS.
-   * @throws TException general thrift error.
-   */
-  @Deprecated
-  Table getTable(String catName, String dbName, String tableName,
-                 String validWriteIdList, boolean getColumnStats, String engine) throws TException;
+  default Table getTable(String catName, String dbName, String tableName,
+                        String validWriteIdList) throws TException {
+    GetTableRequest request = new GetTableRequest(dbName, tableName);
+    request.setCatName(getDefaultCatalog());
+    request.setValidWriteIdList(validWriteIdList);
+    return getTable(request);
+  }
 
   /**
    *
@@ -733,7 +749,6 @@ public interface IMetaStoreClient {
    *           In case the table wasn't found.
    */
   Table getTable(GetTableRequest getTableRequest) throws MetaException, TException, NoSuchObjectException;
-
 
   /**
    * Get tables as objects (rather than just fetching their names).  This is more expensive and
@@ -755,8 +770,10 @@ public interface IMetaStoreClient {
    * @throws MetaException
    *          Any other errors
    */
-  List<Table> getTableObjectsByName(String dbName, List<String> tableNames)
-      throws MetaException, InvalidOperationException, UnknownDBException, TException;
+  default List<Table> getTableObjectsByName(String dbName, List<String> tableNames)
+      throws MetaException, InvalidOperationException, UnknownDBException, TException {
+    return getTables(getDefaultCatalog(), dbName, tableNames, null);
+  }
 
   /**
    * Get tables as objects (rather than just fetching their names).  This is more expensive and
@@ -814,8 +831,10 @@ public interface IMetaStoreClient {
   /**
    * Updates the creation metadata for the materialized view.
    */
-  void updateCreationMetadata(String dbName, String tableName, CreationMetadata cm)
-      throws MetaException, TException;
+  default void updateCreationMetadata(String dbName, String tableName, CreationMetadata cm)
+      throws MetaException, TException {
+    updateCreationMetadata(getDefaultCatalog(), dbName, tableName, cm);
+  }
 
   /**
    * Updates the creation metadata for the materialized view.
@@ -836,8 +855,10 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing the RDBMS
    * @throws TException thrift transport error
    */
-  Partition appendPartition(String dbName, String tableName, List<String> partVals)
-      throws InvalidObjectException, AlreadyExistsException, MetaException, TException;
+  default Partition appendPartition(String dbName, String tableName, List<String> partVals)
+      throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
+    return appendPartition(getDefaultCatalog(), dbName, tableName, partVals);
+  }
 
   /**
    * Add a partition to a table and get back the resulting Partition object.  This creates an
@@ -867,8 +888,10 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing the RDBMS
    * @throws TException thrift transport error
    */
-  Partition appendPartition(String dbName, String tableName, String name)
-      throws InvalidObjectException, AlreadyExistsException, MetaException, TException;
+  default Partition appendPartition(String dbName, String tableName, String name)
+      throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
+    return appendPartition(getDefaultCatalog(), dbName, tableName, name);
+  }
 
   /**
    * Add a partition to a table and get back the resulting Partition object.  This creates an
@@ -956,8 +979,12 @@ public interface IMetaStoreClient {
    * @throws MetaException error access the RDBMS.
    * @throws TException thrift transport error
    */
-  Partition getPartition(String dbName, String tblName, List<String> partVals)
-      throws NoSuchObjectException, MetaException, TException;
+  default Partition getPartition(String dbName, String tblName, List<String> partVals)
+      throws NoSuchObjectException, MetaException, TException {
+    GetPartitionRequest req = new GetPartitionRequest(dbName, tblName, partVals);
+    req.setCatName(getDefaultCatalog());
+    return getPartitionRequest(req).getPartition();
+  }
 
   /**
    * Get a partition.
@@ -982,8 +1009,12 @@ public interface IMetaStoreClient {
      * @throws MetaException error access the RDBMS.
      * @throws TException thrift transport error
      */
-  Partition getPartition(String catName, String dbName, String tblName, List<String> partVals)
-      throws NoSuchObjectException, MetaException, TException;
+  default Partition getPartition(String catName, String dbName, String tblName, List<String> partVals)
+      throws NoSuchObjectException, MetaException, TException {
+    GetPartitionRequest req = new GetPartitionRequest(dbName, tblName, partVals);
+    req.setCatName(getDefaultCatalog());
+    return getPartitionRequest(req).getPartition();
+  }
 
   /**
    * Move a partition from one table to another
@@ -998,10 +1029,13 @@ public interface IMetaStoreClient {
    * @throws InvalidObjectException error in partition specifications
    * @throws TException thrift transport error
    */
-  Partition exchange_partition(Map<String, String> partitionSpecs,
+  default Partition exchange_partition(Map<String, String> partitionSpecs,
       String sourceDb, String sourceTable, String destdb,
       String destTableName) throws MetaException, NoSuchObjectException,
-      InvalidObjectException, TException;
+      InvalidObjectException, TException {
+    return exchange_partition(partitionSpecs, getDefaultCatalog(), sourceDb, sourceTable,
+        getDefaultCatalog(), destdb, destTableName);
+  }
 
   /**
    * Move a partition from one table to another
@@ -1038,10 +1072,13 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error
    * @return the list of the new partitions
    */
-  List<Partition> exchange_partitions(Map<String, String> partitionSpecs,
+  default List<Partition> exchange_partitions(Map<String, String> partitionSpecs,
       String sourceDb, String sourceTable, String destdb,
       String destTableName) throws MetaException, NoSuchObjectException,
-      InvalidObjectException, TException;
+      InvalidObjectException, TException {
+    return exchange_partitions(partitionSpecs, getDefaultCatalog(), sourceDb, sourceTable,
+        getDefaultCatalog(), destdb, destTableName);
+  }
 
   /**
    * With the one partitionSpecs to exchange, multiple partitions could be exchanged.
@@ -1074,8 +1111,10 @@ public interface IMetaStoreClient {
    * @throws MetaException error access the RDBMS.
    * @throws TException thrift transport error
    */
-  Partition getPartition(String dbName, String tblName, String name)
-      throws MetaException, UnknownTableException, NoSuchObjectException, TException;
+  default Partition getPartition(String dbName, String tblName, String name)
+      throws MetaException, UnknownTableException, NoSuchObjectException, TException {
+    return getPartition(getDefaultCatalog(), dbName, tblName, name);
+  }
 
   /**
    * Get a Partition by name.
@@ -1104,9 +1143,11 @@ public interface IMetaStoreClient {
    * @throws NoSuchObjectException no such partition
    * @throws TException thrift transport error
    */
-  Partition getPartitionWithAuthInfo(String dbName, String tableName,
+  default Partition getPartitionWithAuthInfo(String dbName, String tableName,
       List<String> pvals, String userName, List<String> groupNames)
-      throws MetaException, UnknownTableException, NoSuchObjectException, TException;
+      throws MetaException, UnknownTableException, NoSuchObjectException, TException {
+    return getPartitionWithAuthInfo(getDefaultCatalog(), dbName, tableName, pvals, userName, groupNames);
+  }
 
   /**
    * Get a Partition along with authorization information.
@@ -1218,8 +1259,13 @@ public interface IMetaStoreClient {
    * @throws MetaException Error accessing the RDBMS.
    * @throws TException thrift transport error
    */
-  List<String> listPartitionNames(String db_name, String tbl_name,
-      short max_parts) throws NoSuchObjectException, MetaException, TException;
+  default List<String> listPartitionNames(String db_name, String tbl_name,
+      short max_parts) throws NoSuchObjectException, MetaException, TException {
+    GetPartitionNamesPsRequest req = new GetPartitionNamesPsRequest(db_name, tbl_name);
+    req.setMaxParts(max_parts);
+    req.setCatName(getDefaultCatalog());
+    return listPartitionNamesRequest(req).getNames();
+  }
 
   /**
    * List Names of partitions in a table.
@@ -1243,8 +1289,13 @@ public interface IMetaStoreClient {
    * @throws MetaException Error accessing the RDBMS.
    * @throws TException thrift transport error
    */
-  List<String> listPartitionNames(String catName, String db_name, String tbl_name,
-                                  int max_parts) throws NoSuchObjectException, MetaException, TException;
+  default List<String> listPartitionNames(String catName, String db_name, String tbl_name,
+                                  int max_parts) throws NoSuchObjectException, MetaException, TException {
+    GetPartitionNamesPsRequest req = new GetPartitionNamesPsRequest(db_name, tbl_name);
+    req.setMaxParts(shrinkMaxtoShort(max_parts));
+    req.setCatName(catName);
+    return listPartitionNamesRequest(req).getNames();
+  }
 
   /**
    * Get a list of partition names matching a partial specification of the partition values.
@@ -1260,9 +1311,15 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error.
    * @throws NoSuchObjectException no such table.
    */
-  List<String> listPartitionNames(String db_name, String tbl_name,
+  default List<String> listPartitionNames(String db_name, String tbl_name,
       List<String> part_vals, short max_parts)
-      throws MetaException, TException, NoSuchObjectException;
+      throws MetaException, TException, NoSuchObjectException {
+    GetPartitionNamesPsRequest req = new GetPartitionNamesPsRequest(db_name, tbl_name);
+    req.setMaxParts(shrinkMaxtoShort(max_parts));
+    req.setCatName(getDefaultCatalog());
+    req.setPartValues(part_vals);
+    return listPartitionNamesRequest(req).getNames();
+  }
 
   /**
    * Get a list of partition names matching a partial specification of the partition values.
@@ -1279,9 +1336,15 @@ public interface IMetaStoreClient {
    * @throws TException thrift transport error.
    * @throws NoSuchObjectException no such table.
    */
-  List<String> listPartitionNames(String catName, String db_name, String tbl_name,
+  default List<String> listPartitionNames(String catName, String db_name, String tbl_name,
                                   List<String> part_vals, int max_parts)
-      throws MetaException, TException, NoSuchObjectException;
+      throws MetaException, TException, NoSuchObjectException {
+    GetPartitionNamesPsRequest req = new GetPartitionNamesPsRequest(db_name, tbl_name);
+    req.setMaxParts(shrinkMaxtoShort(max_parts));
+    req.setCatName(catName);
+    req.setPartValues(part_vals);
+    return listPartitionNamesRequest(req).getNames();
+  }
 
   /**
    * Get a list of partition names matching the specified filter and return in order if specified.
@@ -1317,8 +1380,10 @@ public interface IMetaStoreClient {
    * @throws NoSuchObjectException no such table
    * @throws TException thrift transport error
    */
-  int getNumPartitionsByFilter(String dbName, String tableName,
-                               String filter) throws MetaException, NoSuchObjectException, TException;
+  default int getNumPartitionsByFilter(String dbName, String tableName,
+                               String filter) throws MetaException, NoSuchObjectException, TException {
+    return getNumPartitionsByFilter(getDefaultCatalog(), dbName, tableName, filter);
+  }
 
   /**
    * Get number of partitions matching specified filter
@@ -1351,8 +1416,10 @@ public interface IMetaStoreClient {
    * @throws NoSuchObjectException No such table.
    * @throws TException thrift transport error
    */
-  List<Partition> listPartitionsByFilter(String db_name, String tbl_name,
-      String filter, short max_parts) throws MetaException, NoSuchObjectException, TException;
+  default List<Partition> listPartitionsByFilter(String db_name, String tbl_name,
+      String filter, short max_parts) throws MetaException, NoSuchObjectException, TException {
+    return listPartitionsByFilter(getDefaultCatalog(), db_name, tbl_name, filter, max_parts);
+  }
 
   /**
    * Get list of partitions matching specified filter
@@ -1385,9 +1452,11 @@ public interface IMetaStoreClient {
    * @throws NoSuchObjectException No table matches the request
    * @throws TException thrift transport error
    */
-  PartitionSpecProxy listPartitionSpecsByFilter(String db_name, String tbl_name,
+  default PartitionSpecProxy listPartitionSpecsByFilter(String db_name, String tbl_name,
                                                 String filter, int max_parts)
-      throws MetaException, NoSuchObjectException, TException;
+      throws MetaException, NoSuchObjectException, TException {
+    return listPartitionSpecsByFilter(getDefaultCatalog(), db_name, tbl_name, filter, max_parts);
+  }
 
   /**
    * Get a list of partitions in a PartitionSpec, using a filter to select which partitions to
@@ -1428,9 +1497,11 @@ public interface IMetaStoreClient {
    * @return whether the resulting list contains partitions which may or may not match the expr
    * @throws TException thrift transport error or error executing the filter.
    */
-  boolean listPartitionsByExpr(String db_name, String tbl_name,
+  default boolean listPartitionsByExpr(String db_name, String tbl_name,
       byte[] expr, String default_partition_name, short max_parts, List<Partition> result)
-      throws TException;
+      throws TException {
+    return listPartitionsByExpr(getDefaultCatalog(), db_name, tbl_name, expr, default_partition_name, max_parts, result);
+  }
 
   /**
    * Get list of partitions matching specified serialized expression
@@ -1773,8 +1844,11 @@ public interface IMetaStoreClient {
    * @see org.apache.hadoop.hive.metastore.api.ThriftHiveMetastore.Iface#create_table(org.apache.hadoop.hive.metastore.api.CreateTableRequest)
    */
 
-  void createTable(Table tbl) throws AlreadyExistsException,
-      InvalidObjectException, MetaException, NoSuchObjectException, TException;
+  default void createTable(Table tbl) throws AlreadyExistsException,
+      InvalidObjectException, MetaException, NoSuchObjectException, TException {
+    CreateTableRequest req = new CreateTableRequest(tbl);
+    createTable(req);
+  }
 
   /**
    * @param request CreateTableRequest

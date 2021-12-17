@@ -798,28 +798,6 @@ public class HiveMetaStoreClientPreCatalog implements IMetaStoreClient, AutoClos
     return client.translate_table_dryrun(tbl);
   }
 
-  /**
-   * @param tbl
-   * @throws MetaException
-   * @throws NoSuchObjectException
-   * @throws TException
-   * @see org.apache.hadoop.hive.metastore.api.ThriftHiveMetastore.Iface#create_table(org.apache.hadoop.hive.metastore.api.Table)
-   */
-  @Override
-  public void createTable(Table tbl) throws AlreadyExistsException,
-      InvalidObjectException, MetaException, NoSuchObjectException, TException {
-    CreateTableRequest request = new CreateTableRequest(tbl);
-    createTable(request);
-  }
-
-  public void createTable(Table tbl, EnvironmentContext envContext) throws AlreadyExistsException,
-          InvalidObjectException, MetaException, NoSuchObjectException, TException {
-    CreateTableRequest request = new CreateTableRequest(tbl);
-    request.setEnvContext(envContext);
-    createTable(request);
-  }
-
-
   public void createTable(CreateTableRequest request) throws AlreadyExistsException,
       InvalidObjectException, MetaException, NoSuchObjectException, TException {
     Table tbl = request.getTable();
@@ -3323,20 +3301,8 @@ public class HiveMetaStoreClientPreCatalog implements IMetaStoreClient, AutoClos
   }
 
   @Override
-  public Table getTable(String catName, String dbName, boolean getColumnStats, String engine) throws MetaException,
-          TException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
   public Table getTable(String catName, String dbName, String tableName,
                         String validWriteIdList) throws TException {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Table getTable(String catName, String dbName, String tableName,
-                        String validWriteIdList, boolean getColumnStats, String engine) throws TException {
     throw new UnsupportedOperationException();
   }
 

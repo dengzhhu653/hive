@@ -249,15 +249,6 @@ public class SessionHiveMetaStoreClient extends HiveMetaStoreClientWithLocalCach
     return getTable(getTableRequest);
   }
 
-  @Override
-  public org.apache.hadoop.hive.metastore.api.Table getTable(String dbname, String name, boolean getColStats,
-      String engine) throws MetaException, TException, NoSuchObjectException {
-    GetTableRequest getTableRequest = new GetTableRequest(dbname, name);
-    getTableRequest.setGetColumnStats(getColStats);
-    getTableRequest.setEngine(engine);
-    return getTable(getTableRequest);
-  }
-
   // Need to override this one too or dropTable breaks because it doesn't find the table when checks
   // before the drop.
   @Override

@@ -107,7 +107,6 @@ public class TestHiveMetaStoreClient extends HiveMetaStoreClientWithLocalCache i
     getTableRequest.setGetColumnStats(getColumnStats);
     getTableRequest.setEngine(engine);
     return getTable(getTableRequest);
-
   }
 
   public Table getTable(GetTableRequest getTableRequest)

@@ -1127,4 +1127,14 @@ public class MetaStoreUtils {
     }
     return noCleanUp != null && noCleanUp.equalsIgnoreCase("true");
   }
+
+  public static short shrinkMaxtoShort(int max) {
+    if (max < 0) {
+      return -1;
+    } else if (max <= Short.MAX_VALUE) {
+      return (short)max;
+    } else {
+      return Short.MAX_VALUE;
+    }
+  }
 }

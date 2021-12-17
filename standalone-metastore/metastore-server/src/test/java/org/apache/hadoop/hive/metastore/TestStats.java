@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.metastore.api.Date;
 import org.apache.hadoop.hive.metastore.api.DateColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.DoubleColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.GetTableRequest;
 import org.apache.hadoop.hive.metastore.api.LongColumnStatsData;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -222,16 +223,19 @@ public class TestStats {
     compareStatsForOneTableOrPartition(objs, 0, colMap);
 
     // Test the statistics obtained through getTable call.
-    Table table = catName.equals(NO_CAT) ?
-            client.getTable(dbName, tableName, true, ENGINE) :
-            client.getTable(catName, dbName, tableName, null, true, ENGINE);
+    GetTableRequest request = new GetTableRequest(dbName, tableName);
+    request.setEngine(ENGINE);
+    request.setGetColumnStats(true);
+    if (!catName.equals(NO_CAT)) {
+      request.setCatName(catName);
+    }
+    Table table = client.getTable(request);
     Assert.assertTrue(table.isSetColStats());
     compareStatsForOneTableOrPartition(table.getColStats().getStatsObj(), 0, colMap);
 
     // Test that getTable call doesn't get the statistics when not explicitly requested.
-    table = catName.equals(NO_CAT) ?
-            client.getTable(dbName, tableName, false, null) :
-            client.getTable(catName, dbName, tableName, null, false, null);
+    request.setGetColumnStats(false);
+    table = client.getTable(request);
     Assert.assertFalse(table.isSetColStats());
   }
 

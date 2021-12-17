@@ -142,6 +142,7 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   private final int fileMetadataBatchSize;
 
   private Map<String, String> currentMetaVars;
+  private String defaultCatalog;
 
   private static final AtomicInteger connCount = new AtomicInteger(0);
 
@@ -1233,48 +1234,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   }
 
   /**
-   * @param tbl
-   * @throws MetaException
-   * @throws NoSuchObjectException
-   * @throws TException
-   * @see org.apache.hadoop.hive.metastore.api.ThriftHiveMetastore.Iface #create_table(org.apache.hadoop.hive.metastore.api.CreateTableRequest)
-   */
-  @Override
-  public void createTable(Table tbl) throws AlreadyExistsException,
-      InvalidObjectException, MetaException, NoSuchObjectException, TException {
-    createTable(tbl, null);
-  }
-
-  public void createTable(Table tbl, EnvironmentContext envContext) throws AlreadyExistsException,
-      InvalidObjectException, MetaException, NoSuchObjectException, TException {
-    if (!tbl.isSetCatName()) {
-      tbl.setCatName(getDefaultCatalog(conf));
-    }
-    HiveMetaHook hook = getHook(tbl);
-    if (hook != null) {
-      hook.preCreateTable(tbl);
-    }
-    boolean success = false;
-    try {
-      // Subclasses can override this step (for example, for temporary tables)
-      create_table_with_environment_context(tbl, envContext);
-      if (hook != null) {
-        hook.commitCreateTable(tbl);
-      }
-      success = true;
-    }
-    finally {
-      if (!success && (hook != null)) {
-        try {
-          hook.rollbackCreateTable(tbl);
-        } catch (Exception e){
-          LOG.error("Create rollback failed with", e);
-        }
-      }
-    }
-  }
-
-  /**
    * @param request
    * @throws MetaException
    * @throws NoSuchObjectException
@@ -1931,20 +1890,10 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
   }
 
   @Override
-  public List<String> getDatabases(String databasePattern) throws TException {
-    return getDatabases(getDefaultCatalog(conf), databasePattern);
-  }
-
-  @Override
   public List<String> getDatabases(String catName, String databasePattern) throws TException {
     List<String> databases = client.get_databases(prependCatalogToDbName(
         catName, databasePattern, conf));
     return FilterUtils.filterDbNamesIfEnabled(isClientFilterEnabled, filterHook, databases);
-  }
-
-  @Override
-  public List<String> getAllDatabases() throws TException {
-    return getAllDatabases(getDefaultCatalog(conf));
   }
 
   @Override
@@ -2488,28 +2437,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
 
   /**
    * @deprecated use getTable(GetTableRequest getTableRequest)
-   * @param dbname
-   * @param name
-   * @param getColumnStats
-   *          get the column stats, if available, when true
-   * @param engine engine sending the request
-   * @return
-   * @throws TException
-   */
-  @Override
-  @Deprecated
-  public Table getTable(String dbname, String name, boolean getColumnStats, String engine) throws TException {
-    GetTableRequest req = new GetTableRequest(dbname, name);
-    req.setCatName(getDefaultCatalog(conf));
-    req.setGetColumnStats(getColumnStats);
-    if (getColumnStats) {
-      req.setEngine(engine);
-    }
-    return getTable(req);
-  }
-
-  /**
-   * @deprecated use getTable(GetTableRequest getTableRequest)
    * @param catName catalog the table is in.
    * @param dbName database the table is in.
    * @param tableName table name.
@@ -2566,31 +2493,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
     GetTableRequest req = new GetTableRequest(dbName, tableName);
     req.setCatName(catName);
     req.setValidWriteIdList(validWriteIdList);
-    return getTable(req);
-  }
-
-  /**
-   * @deprecated use getTable(GetTableRequest getTableRequest)
-   * @param catName catalog the table is in.
-   * @param dbName database the table is in.
-   * @param tableName table name.
-   * @param validWriteIdList applicable snapshot
-   * @param getColumnStats get the column stats, if available, when true
-   * @param engine engine sending the request
-   * @return
-   * @throws TException
-   */
-  @Override
-  @Deprecated
-  public Table getTable(String catName, String dbName, String tableName, String validWriteIdList,
-      boolean getColumnStats, String engine) throws TException {
-    GetTableRequest req = new GetTableRequest(dbName, tableName);
-    req.setCatName(catName);
-    req.setValidWriteIdList(validWriteIdList);
-    req.setGetColumnStats(getColumnStats);
-    if (getColumnStats) {
-      req.setEngine(engine);
-    }
     return getTable(req);
   }
 
@@ -2690,16 +2592,6 @@ public class HiveMetaStoreClient implements IMetaStoreClient, AutoCloseable {
    */
   public Type getType(String name) throws NoSuchObjectException, MetaException, TException {
     return deepCopy(client.get_type(name));
-  }
-
-  @Override
-  public List<String> getTables(String dbname, String tablePattern) throws MetaException {
-    try {
-      return getTables(getDefaultCatalog(conf), dbname, tablePattern);
-    } catch (Exception e) {
-      MetaStoreUtils.throwMetaException(e);
-    }
-    return null;
   }
 
   @Override
