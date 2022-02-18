@@ -1177,8 +1177,10 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing RDBMS.
    * @throws TException thrift transport error
    */
-  List<Partition> listPartitions(String db_name, String tbl_name, short max_parts)
-      throws NoSuchObjectException, MetaException, TException;
+  default List<Partition> listPartitions(String db_name, String tbl_name, short max_parts)
+      throws NoSuchObjectException, MetaException, TException {
+    return listPartitions(getDefaultCatalog(), db_name, tbl_name, max_parts);
+  }
 
   /**
    * Get a list of partittions for a table.
@@ -1202,8 +1204,10 @@ public interface IMetaStoreClient {
    * @return a PartitionSpecProxy
    * @throws TException thrift transport error
    */
-  PartitionSpecProxy listPartitionSpecs(String dbName, String tableName, int maxParts)
-    throws TException;
+  default PartitionSpecProxy listPartitionSpecs(String dbName, String tableName, int maxParts)
+    throws TException {
+    return listPartitionSpecs(getDefaultCatalog(), dbName, tableName, maxParts);
+  }
 
   /**
    * Get a list of partitions from a table, returned in the form of PartitionSpecProxy
@@ -1229,8 +1233,10 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing the database or processing the partition values.
    * @throws TException thrift transport error.
    */
-  List<Partition> listPartitions(String db_name, String tbl_name,
-      List<String> part_vals, short max_parts) throws NoSuchObjectException, MetaException, TException;
+  default List<Partition> listPartitions(String db_name, String tbl_name,
+      List<String> part_vals, short max_parts) throws NoSuchObjectException, MetaException, TException {
+    return listPartitions(getDefaultCatalog(), db_name, tbl_name, part_vals, max_parts);
+  }
 
   /**
    * Get a list of partitions based on a (possibly partial) list of partition values.
@@ -1533,9 +1539,19 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing the RDBMS
    * @throws TException thrift transport error
    */
-  List<Partition> listPartitionsWithAuthInfo(String dbName,
+  default List<Partition> listPartitionsWithAuthInfo(String dbName,
       String tableName, short maxParts, String userName, List<String> groupNames)
-      throws MetaException, TException, NoSuchObjectException;
+      throws MetaException, TException, NoSuchObjectException {
+    GetPartitionsPsWithAuthRequest req = new GetPartitionsPsWithAuthRequest();
+    req.setCatName(getDefaultCatalog());
+    req.setDbName(dbName);
+    req.setTblName(tableName);
+    req.setMaxParts(maxParts);
+    req.setUserName(userName);
+    req.setGroupNames(groupNames);
+    GetPartitionsPsWithAuthResponse resp = listPartitionsWithAuthInfoRequest(req);
+    return resp.getPartitions();
+  }
 
   /**
    * List partitions, fetching the authorization information along with the partitions.
@@ -1561,9 +1577,19 @@ public interface IMetaStoreClient {
    * @throws MetaException error accessing the RDBMS
    * @throws TException thrift transport error
    */
-  List<Partition> listPartitionsWithAuthInfo(String catName, String dbName, String tableName,
+  default List<Partition> listPartitionsWithAuthInfo(String catName, String dbName, String tableName,
                                              int maxParts, String userName, List<String> groupNames)
-      throws MetaException, TException, NoSuchObjectException;
+      throws MetaException, TException, NoSuchObjectException {
+    GetPartitionsPsWithAuthRequest req = new GetPartitionsPsWithAuthRequest();
+    req.setCatName(getDefaultCatalog());
+    req.setDbName(dbName);
+    req.setTblName(tableName);
+    req.setMaxParts(shrinkMaxtoShort(maxParts));
+    req.setUserName(userName);
+    req.setGroupNames(groupNames);
+    GetPartitionsPsWithAuthResponse resp = listPartitionsWithAuthInfoRequest(req);
+    return resp.getPartitions();
+  }
 
   /**
    * Get partitions by a list of partition names.
@@ -1588,21 +1614,6 @@ public interface IMetaStoreClient {
    */
   PartitionsResponse getPartitionsRequest(PartitionsRequest req)
           throws NoSuchObjectException, MetaException, TException;
-
-  /**
-   * Get partitions by a list of partition names.
-   * @param db_name database name
-   * @param tbl_name table name
-   * @param part_names list of partition names
-   * @param getColStats if true include statistics in the Partition object
-   * @param engine engine sending the request
-   * @return list of Partition objects
-   * @throws NoSuchObjectException No such partitionscatName
-   * @throws MetaException error accessing the RDBMS.
-   * @throws TException thrift transport error
-   */
-  List<Partition> getPartitionsByNames(String db_name, String tbl_name, List<String> part_names,
-      boolean getColStats, String engine) throws NoSuchObjectException, MetaException, TException;
 
   /**
    * Get partitions by a list of partition names.
