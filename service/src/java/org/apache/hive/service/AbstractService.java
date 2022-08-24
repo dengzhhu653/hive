@@ -150,7 +150,7 @@ public abstract class AbstractService implements Service {
           STATE.DECOMMISSIONING + " or " + STATE.STARTED + " instead of " + state);
     }
     changeState(STATE.STOPPED);
-    LOG.info("Service:" + getName() + " is stopped.");
+    LOG.info("Service:" + getName() + " is stopped.", new RuntimeException("How does this stopped>>>" + this));
   }
 
   @Override

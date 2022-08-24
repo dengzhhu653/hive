@@ -225,7 +225,7 @@ public class OperationManager extends AbstractService {
   private void addOperation(Operation operation) throws HiveSQLException {
     if (getServiceState() != STATE.STARTED) {
       throw new HiveSQLException("Unable to run new queries as HiveServer2 is decommissioned or inactive,"
-          + " state: " + getServiceState());
+          + " state: " + getServiceState() + ", this: " + this);
     }
     LOG.info("Adding operation: {} {}", operation.getHandle(),
         operation.getParentSession().getSessionHandle());
