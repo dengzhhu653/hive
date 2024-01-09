@@ -360,7 +360,7 @@ public class HMSHandler extends FacebookBase implements IHMSHandler {
         MetastoreConf.getVar(conf, ConfVars.EVENT_LISTENERS));
     listeners.add(new SessionPropertiesListener(conf));
     transactionalListeners = new ArrayList() {{
-        add(new AcidEventListener(conf));
+        // add(new AcidEventListener(conf));
     }};
     transactionalListeners.addAll(MetaStoreServerUtils.getMetaStoreListeners(
             TransactionalMetaStoreEventListener.class, conf,
