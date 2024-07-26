@@ -91,7 +91,7 @@ def buildHive(args) {
 set -x
 . /etc/profile.d/confs.sh
 export USER="`whoami`"
-export MAVEN_OPTS="-Xmx2g"
+export MAVEN_OPTS="-Xmx2g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./heap.bin "
 export -n HIVE_CONF_DIR
 cp $SETTINGS .git/settings.xml
 OPTS=" -s $PWD/.git/settings.xml -B -Dtest.groups= "
