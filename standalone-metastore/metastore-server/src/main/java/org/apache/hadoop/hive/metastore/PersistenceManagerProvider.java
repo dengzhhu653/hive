@@ -659,4 +659,8 @@ public class PersistenceManagerProvider {
     }
     throw new RuntimeException(ex);
   }
+
+  public static PersistenceManagerFactory getPmf(boolean forCompactor) {
+    return forCompactor ? compactorPmf : pmf;
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.hadoop.hive.metastore.datasource;
 import com.codahale.metrics.MetricRegistry;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.DatabaseProduct;
 import org.apache.hadoop.hive.metastore.metrics.Metrics;
@@ -28,9 +29,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * DataSourceProvider for the HikariCP connection pool.
@@ -90,7 +95,12 @@ public class HikariCPDataSourceProvider implements DataSourceProvider {
       config.addDataSourceProperty(kv.getKey(), kv.getValue());
     }
 
-    return new HikariDataSource(initMetrics(config));
+    return new HikariDataSource(initMetrics(config)) {
+      @Override
+      public Connection getConnection() throws SQLException {
+        return wrapConnectionOnCommit(poolName, super.getConnection());
+      }
+    };
   }
 
   @Override
@@ -111,5 +121,30 @@ public class HikariCPDataSourceProvider implements DataSourceProvider {
       config.setMetricRegistry(registry);
     }
     return config;
+  }
+
+  private Connection wrapConnectionOnCommit(String poolName, Connection connection) {
+    boolean secondary = poolName != null && poolName.endsWith("secondary");
+    if (secondary) {
+      InvocationHandler handler = (proxy, method, args) -> {
+        if ("commit".equals(method.getName()) && THROW_ON_COMMIT.get()) {
+          try {
+            connection.rollback();
+          } finally {
+            connection.close();
+          }
+          throw new SQLException("Error while commiting the transaction....xxxxxxxx");
+        }
+        return method.invoke(connection, args);
+      };
+      return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+          new Class[] {Connection.class}, handler);
+    }
+    return connection;
+  }
+
+  private static final AtomicBoolean THROW_ON_COMMIT = new AtomicBoolean(false);
+  public static void setThrowOnCommit(boolean throwOnCommit) {
+    THROW_ON_COMMIT.set(throwOnCommit);
   }
 }
