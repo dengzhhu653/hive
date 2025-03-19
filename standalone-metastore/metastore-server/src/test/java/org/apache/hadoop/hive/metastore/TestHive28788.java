@@ -24,11 +24,15 @@ import javax.jdo.PersistenceManagerFactory;
 import java.util.UUID;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.metastore.api.ResourceType;
+import org.apache.hadoop.hive.metastore.api.ResourceUri;
 import org.apache.hadoop.hive.metastore.client.builder.DatabaseBuilder;
+import org.apache.hadoop.hive.metastore.client.builder.FunctionBuilder;
 import org.apache.hadoop.hive.metastore.client.builder.TableBuilder;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
 import org.apache.hadoop.hive.metastore.datasource.HikariCPDataSourceProvider;
 import org.apache.hadoop.hive.metastore.utils.MetaStoreServerUtils;
+import org.apache.hadoop.hive.metastore.utils.TestTxnDbUtil;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,9 +49,10 @@ public class TestHive28788 {
   public void setUp() throws Exception {
     conf = MetastoreConf.newMetastoreConf();
     MetastoreConf.setBoolVar(conf, MetastoreConf.ConfVars.HIVE_IN_TEST, true);
-
     MetaStoreTestUtils.setConfForStandloneMode(conf);
     setupRandomObjectStoreUrl();
+    TestTxnDbUtil.prepDb(conf);
+
     ObjectStore objectStore = new ObjectStore();
     objectStore.setConf(conf);
     HMSHandler.createDefaultCatalog(objectStore, new Warehouse(conf));
@@ -71,14 +76,14 @@ public class TestHive28788 {
     Assert.assertEquals(0, secondaryPool.getHikariPoolMXBean().getActiveConnections());
     Assert.assertEquals(2, secondaryPool.getHikariPoolMXBean().getIdleConnections());
 
-    getAndCreateTable(objectStore1, "tbl1", false);
-    getAndCreateTable(objectStore2, "tbl2", true);
+    getAndCreateTable(objectStore1, "tbl1");
+    getAndCreateFunction(objectStore2, "func1");
 
     // No idle connection in the secondary connection pool even the ObjectStore instances have been shutdown
     objectStore1.shutdown();
     objectStore2.shutdown();
-    Assert.assertEquals(2, secondaryPool.getHikariPoolMXBean().getActiveConnections());
-    Assert.assertEquals(0, secondaryPool.getHikariPoolMXBean().getIdleConnections());
+    Assert.assertEquals(0, secondaryPool.getHikariPoolMXBean().getActiveConnections());
+    Assert.assertEquals(2, secondaryPool.getHikariPoolMXBean().getIdleConnections());
   }
 
   private void setupRandomObjectStoreUrl(){
@@ -88,27 +93,56 @@ public class TestHive28788 {
     MetastoreConf.setVar(conf, MetastoreConf.ConfVars.CONNECT_URL_KEY, currentUrl);
   }
 
-  private void getAndCreateTable(ObjectStore objectStore, String tblName, boolean runSecondInsert) throws Exception {
-    objectStore.getTable(DEFAULT_CATALOG_NAME, "default", tblName);
+  private void getAndCreateTable(ObjectStore objectStore, String name) throws Exception {
+    objectStore.getTable(DEFAULT_CATALOG_NAME, "default", name);
     HikariCPDataSourceProvider.setThrowOnCommit(true);
     try {
       objectStore.createTable(new TableBuilder()
           .setDbName("default")
-          .setTableName(tblName)
+          .setTableName(name)
           .addCol("test_col1", "int")
           .addCol("test_col2", "int")
-          .setLocation("file:/test/warehouse/" + tblName)
+          .setLocation("file:/test/warehouse/" + name)
           .build(conf));
       Assert.fail("This should be failed....");
     } catch (Exception e) {
       LOG.debug("Ignore this exception", e);
     }
 
-    if (runSecondInsert) {
-      // retry the table creation
-      HikariCPDataSourceProvider.setThrowOnCommit(false);
-      objectStore.createTable(new TableBuilder().setDbName("default").setTableName(tblName).addCol("test_col1", "int")
-          .addCol("test_col2", "int").setLocation("file:/test/warehouse/" + tblName).build(conf));
+    objectStore.getTable(DEFAULT_CATALOG_NAME, "default", name);
+    // a retry
+    HikariCPDataSourceProvider.setThrowOnCommit(false);
+    objectStore.createTable(new TableBuilder().setDbName("default").setTableName(name).addCol("test_col1", "int")
+        .addCol("test_col2", "int").setLocation("file:/test/warehouse/" + name).build(conf));
+    objectStore.getTable(DEFAULT_CATALOG_NAME, "default", name);
+  }
+
+  private void getAndCreateFunction(ObjectStore objectStore, String name) throws Exception {
+    objectStore.getDatabase(DEFAULT_CATALOG_NAME, "default");
+    HikariCPDataSourceProvider.setThrowOnCommit(true);
+    try {
+      objectStore.createFunction(new FunctionBuilder()
+          .setCatName(DEFAULT_CATALOG_NAME)
+          .setDbName("default")
+          .setName(name)
+          .setClass("abcd")
+          .addResourceUri(new ResourceUri(ResourceType.JAR, "file:/test.jar"))
+          .build(conf));
+      Assert.fail("This should be failed....");
+    } catch (Exception e) {
+      LOG.debug("Ignore this exception", e);
     }
+
+    objectStore.getTable(DEFAULT_CATALOG_NAME, "default", "tbl1");
+    HikariCPDataSourceProvider.setThrowOnCommit(false);
+    // retry
+    objectStore.createFunction(new FunctionBuilder()
+        .setCatName(DEFAULT_CATALOG_NAME)
+        .setDbName("default")
+        .setName("test_1")
+        .setClass("abcd")
+        .addResourceUri(new ResourceUri(ResourceType.JAR, "file:/test.jar"))
+        .build(conf));
+    objectStore.getFunction(DEFAULT_CATALOG_NAME, "default", name);
   }
 }

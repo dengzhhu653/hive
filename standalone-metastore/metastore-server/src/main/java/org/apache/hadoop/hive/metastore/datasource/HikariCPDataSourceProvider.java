@@ -128,6 +128,11 @@ public class HikariCPDataSourceProvider implements DataSourceProvider {
     if (secondary) {
       InvocationHandler handler = (proxy, method, args) -> {
         if ("commit".equals(method.getName()) && THROW_ON_COMMIT.get()) {
+          try {
+            connection.rollback();
+          } finally {
+            connection.close();
+          }
           throw new SQLException("Error while commiting the transaction....");
         }
         return method.invoke(connection, args);
