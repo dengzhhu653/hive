@@ -71,8 +71,8 @@ public class TestHive28788 {
     Assert.assertEquals(0, secondaryPool.getHikariPoolMXBean().getActiveConnections());
     Assert.assertEquals(2, secondaryPool.getHikariPoolMXBean().getIdleConnections());
 
-    getAndCreateTable(objectStore1, "tbl1");
-    getAndCreateTable(objectStore2, "tbl2");
+    getAndCreateTable(objectStore1, "tbl1", false);
+    getAndCreateTable(objectStore2, "tbl2", true);
 
     // No idle connection in the secondary connection pool even the ObjectStore instances have been shutdown
     objectStore1.shutdown();
@@ -88,29 +88,27 @@ public class TestHive28788 {
     MetastoreConf.setVar(conf, MetastoreConf.ConfVars.CONNECT_URL_KEY, currentUrl);
   }
 
-  private void getAndCreateTable(ObjectStore objectStore, String tblName) throws Exception {
+  private void getAndCreateTable(ObjectStore objectStore, String tblName, boolean runSecondInsert) throws Exception {
     objectStore.getTable(DEFAULT_CATALOG_NAME, "default", tblName);
     HikariCPDataSourceProvider.setThrowOnCommit(true);
     try {
       objectStore.createTable(new TableBuilder()
           .setDbName("default")
-          .setTableName(tblName + "1")
+          .setTableName(tblName)
           .addCol("test_col1", "int")
           .addCol("test_col2", "int")
-          .setLocation("file:/test/warehouse/" + tblName + "1")
+          .setLocation("file:/test/warehouse/" + tblName)
           .build(conf));
       Assert.fail("This should be failed....");
     } catch (Exception e) {
       LOG.debug("Ignore this exception", e);
     }
 
-    HikariCPDataSourceProvider.setThrowOnCommit(false);
-    objectStore.createTable(new TableBuilder()
-        .setDbName("default")
-        .setTableName(tblName)
-        .addCol("test_col1", "int")
-        .addCol("test_col2", "int")
-        .setLocation("file:/test/warehouse/" + tblName)
-        .build(conf));
+    if (runSecondInsert) {
+      // retry the table creation
+      HikariCPDataSourceProvider.setThrowOnCommit(false);
+      objectStore.createTable(new TableBuilder().setDbName("default").setTableName(tblName).addCol("test_col1", "int")
+          .addCol("test_col2", "int").setLocation("file:/test/warehouse/" + tblName).build(conf));
+    }
   }
 }
