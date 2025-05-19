@@ -24,6 +24,8 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Arrays;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hive.common.JavaVersionUtils;
 import org.apache.hive.hcatalog.templeton.LauncherDelegator;
 import org.apache.hive.jdbc.HiveConnection;
 import org.slf4j.Logger;
@@ -121,9 +123,10 @@ public class TempletonControllerJob extends Configured implements Tool, JobSubmi
     if (amMemoryMB != null && !amMemoryMB.isEmpty()) {
       conf.set(AppConfig.HADOOP_MR_AM_MEMORY_MB, amMemoryMB);
     }
-    String amJavaOpts = appConf.controllerAMChildOpts();
-    if (amJavaOpts != null && !amJavaOpts.isEmpty()) {
-      conf.set(AppConfig.HADOOP_MR_AM_JAVA_OPTS, addJavaOpensPackages(amJavaOpts));
+    String amJavaOpts = StringUtils.defaultString(appConf.controllerAMChildOpts());
+    amJavaOpts += JavaVersionUtils.getAddOpensFlagsIfNeeded();
+    if (!amJavaOpts.isEmpty()) {
+      conf.set(AppConfig.HADOOP_MR_AM_JAVA_OPTS, amJavaOpts);
     }
 
     String user = UserGroupInformation.getCurrentUser().getShortUserName();
@@ -180,6 +183,7 @@ public class TempletonControllerJob extends Configured implements Tool, JobSubmi
         "--add-opens java.base/java.util.regex=ALL-UNNAMED"
     );
   }
+
   private String addToken(Job job, String user, String type) throws IOException, InterruptedException,
           TException {
     if(!secureMetastoreAccess) {
