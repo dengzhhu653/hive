@@ -52,15 +52,24 @@ final class BootstrapIndexer {
   private final IndexMapping mapping;
   private final Indexer indexer;
   private final IMetaStoreClient client;
+  private final boolean shareFetchClient;
 
   BootstrapIndexer(Configuration configuration,
       IndexMapping mapping, Indexer indexer,
       IMetaStoreClient client) {
+    this(configuration, mapping, indexer, client, false);
+  }
+
+  /** Package-private for unit tests: fetch workers reuse the injected client. */
+  BootstrapIndexer(Configuration configuration,
+      IndexMapping mapping, Indexer indexer,
+      IMetaStoreClient client, boolean shareFetchClient) {
     this.configuration = configuration;
     this.indexConfig = new IndexConfig(configuration);
     this.mapping = mapping;
     this.indexer = indexer;
     this.client = client;
+    this.shareFetchClient = shareFetchClient;
   }
 
   void run(long notificationId) throws Exception {
@@ -146,7 +155,21 @@ final class BootstrapIndexer {
   private void fetchTableWorker(BatchPlan plan, BlockingQueue<TableBatch> workQueue,
       BlockingQueue<List<TableDocument>> indexQueue, AtomicReference<Exception> failure,
       CountDownLatch fetchDone) {
-    try (IMetaStoreClient client = RetryingMetaStoreClient.getProxy(configuration, true)) {
+    if (shareFetchClient) {
+      runFetchLoop(client, plan, workQueue, indexQueue, failure, fetchDone);
+      return;
+    }
+    try (IMetaStoreClient fetchClient = RetryingMetaStoreClient.getProxy(configuration, true)) {
+      runFetchLoop(fetchClient, plan, workQueue, indexQueue, failure, fetchDone);
+    } catch (Exception e) {
+      recordFailure(failure, e);
+    }
+  }
+
+  private void runFetchLoop(IMetaStoreClient fetchClient, BatchPlan plan,
+      BlockingQueue<TableBatch> workQueue, BlockingQueue<List<TableDocument>> indexQueue,
+      AtomicReference<Exception> failure, CountDownLatch fetchDone) {
+    try {
       while (true) {
         TableBatch batch = workQueue.take();
         if (batch == END_OF_WORK) {
@@ -156,7 +179,7 @@ final class BootstrapIndexer {
         try {
           if (failure.get() == null) {
             List<Table> tables =
-                client.getTableObjectsByName(batch.database(), batch.tableNames());
+                fetchClient.getTableObjectsByName(batch.database(), batch.tableNames());
             plan.expectedTableCount().addAndGet(tables.size());
             List<TableDocument> documents = new ArrayList<>(tables.size());
             for (Table table : tables) {

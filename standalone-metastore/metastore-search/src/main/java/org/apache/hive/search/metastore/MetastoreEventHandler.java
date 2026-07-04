@@ -67,9 +67,14 @@ public class MetastoreEventHandler implements AutoCloseable {
   private long failedBatchStartId = -1;
 
   private MetastoreEventHandler(Configuration configuration) throws TException {
+    this(configuration, RetryingMetaStoreClient.getProxy(configuration, true));
+  }
+
+  /** Package-private for unit tests with a stub {@link IMetaStoreClient}. */
+  MetastoreEventHandler(Configuration configuration, IMetaStoreClient client) {
     this.conf = new Configuration(Objects.requireNonNull(configuration));
     this.indexConfig = new IndexConfig(conf);
-    this.client = RetryingMetaStoreClient.getProxy(conf, true);
+    this.client = Objects.requireNonNull(client);
   }
 
   public static MetastoreEventHandler of(Configuration conf, MetastoreEventListener... listeners)

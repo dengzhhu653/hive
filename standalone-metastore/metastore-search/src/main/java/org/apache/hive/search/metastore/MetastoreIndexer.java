@@ -49,11 +49,18 @@ public final class MetastoreIndexer implements AutoCloseable {
 
   public MetastoreIndexer(Configuration configuration, IndexManager indexManager, Indexer indexer)
       throws Exception {
-    this.client = RetryingMetaStoreClient.getProxy(configuration, true);
+    this(configuration, indexManager, indexer,
+        RetryingMetaStoreClient.getProxy(configuration, true));
+  }
+
+  MetastoreIndexer(Configuration configuration, IndexManager indexManager, Indexer indexer,
+      IMetaStoreClient client) throws Exception {
+    this.client = client;
     this.indexer = indexer;
     this.indexManager = indexManager;
     this.flushIndexListener = new FlushIndexListener(configuration);
-    this.handler = MetastoreEventHandler.of(configuration, flushIndexListener, indexManager);
+    this.handler = new MetastoreEventHandler(configuration, client);
+    this.handler.addListeners(flushIndexListener, indexManager);
     this.cluster = new MetastoreCluster(configuration, flushIndexListener);
     this.lastEventId = initialize();
   }
@@ -176,7 +183,9 @@ public final class MetastoreIndexer implements AutoCloseable {
   }
 
   private class FlushIndexListener
-      implements MetastoreEventListener, LeaderElection.LeadershipStateListener, AutoCloseable {
+      implements MetastoreEventListener,
+      LeaderElection.LeadershipStateListener,
+      AutoCloseable {
     private volatile long eventId;
     private volatile long lastCommittedEventId;
     private volatile boolean isLeader;
