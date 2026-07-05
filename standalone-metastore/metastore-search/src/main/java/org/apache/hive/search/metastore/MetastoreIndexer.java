@@ -67,10 +67,10 @@ public final class MetastoreIndexer implements AutoCloseable {
 
   private boolean rebuildIndex() throws Exception {
     indexManager.resolveInterruptedRestore();
-    if (isIndexValid(indexManager.readLocalManifest())) {
+    if (isIndexValid(indexManager.readLocalManifest().orElse(null))) {
       return false;
     }
-    if (isIndexValid(indexManager.readRemoteManifest())) {
+    if (isIndexValid(indexManager.readRemoteManifest().orElse(null))) {
       if (indexManager.restoreBackup()) {
         return false;
       }
@@ -82,17 +82,17 @@ public final class MetastoreIndexer implements AutoCloseable {
     return true;
   }
 
-  private boolean isIndexValid(Optional<IndexManifest> indexManifest)
+  private boolean isIndexValid(IndexManifest indexManifest)
       throws Exception {
-    if (indexManifest.isEmpty()) {
+    if (indexManifest == null) {
       return false;
     }
     String currentModelName = indexManager.mapping().inference().modelName();
-    String modelName = indexManifest.get().modelName();
+    String modelName = indexManifest.modelName();
     if (!currentModelName.equals(modelName)) {
       return false;
     }
-    long notificationId = indexManifest.get().lastEventId();
+    long notificationId = indexManifest.lastEventId();
     return canCatchUp(notificationId);
   }
 

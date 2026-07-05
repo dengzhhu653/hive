@@ -56,9 +56,9 @@ public class MetastoreEventHandler implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(MetastoreEventHandler.class);
   private final AtomicBoolean stopped = new AtomicBoolean(false);
   private final List<MetastoreEventListener> listeners = Collections.synchronizedList(new ArrayList<>());
-  private final Configuration conf;
   private final IndexConfig indexConfig;
   private final IMetaStoreClient client;
+  private final MessageDeserializer deserializer;
   private Thread metaRefresher;
   private long lastEventId;
 
@@ -72,9 +72,10 @@ public class MetastoreEventHandler implements AutoCloseable {
 
   /** Package-private for unit tests with a stub {@link IMetaStoreClient}. */
   MetastoreEventHandler(Configuration configuration, IMetaStoreClient client) {
-    this.conf = new Configuration(Objects.requireNonNull(configuration));
+    Configuration conf = new Configuration(Objects.requireNonNull(configuration));
     this.indexConfig = new IndexConfig(conf);
     this.client = Objects.requireNonNull(client);
+    this.deserializer = MessageFactory.getDefaultInstance(conf).getDeserializer();
   }
 
   public static MetastoreEventHandler of(Configuration conf, MetastoreEventListener... listeners)
@@ -145,19 +146,18 @@ public class MetastoreEventHandler implements AutoCloseable {
         LOG.debug("No event found since the last event id: {}", lastEventId);
         return 0;
       }
-      MessageDeserializer deserializer = MessageFactory.getDefaultInstance(conf).getDeserializer();
       List<NotificationEvent> events = resp.getEvents();
       long batchStartId = events.get(0).getEventId();
 
       MetastoreEventListener.NotificationTask task;
       try {
-        task = buildTask(events, deserializer);
+        task = buildTask(events);
       } catch (Exception parseError) {
         LOG.warn(
             "Failed to build notification batch starting at event {}; falling back to single-event apply",
             batchStartId,
             parseError);
-        int applied = applyEventsIndividually(events, deserializer);
+        int applied = applyEventsIndividually(events);
         if (applied > 0) {
           notifyListenersStatus(true);
           resetBatchFailureState();
@@ -179,7 +179,7 @@ public class MetastoreEventHandler implements AutoCloseable {
               "Batch apply failed {} time(s) at event {}; falling back to single-event apply",
               consecutiveBatchFailures,
               failedBatchStartId);
-          int applied = applyEventsIndividually(events, deserializer);
+          int applied = applyEventsIndividually(events);
           if (applied > 0) {
             notifyListenersStatus(true);
             resetBatchFailureState();
@@ -198,18 +198,18 @@ public class MetastoreEventHandler implements AutoCloseable {
     return 0;
   }
 
-  private int applyEventsIndividually(
-      List<NotificationEvent> events, MessageDeserializer deserializer)
+  private int applyEventsIndividually(List<NotificationEvent> events)
       throws IndexNotHealthyException {
     int applied = 0;
     for (NotificationEvent event : events) {
       if (lastEventId >= event.getEventId()) {
         continue;
       }
-      MetastoreEventListener.NotificationTask task = new MetastoreEventListener.NotificationTask();
+      MetastoreEventListener.NotificationTask task =
+          new MetastoreEventListener.NotificationTask();
       task.firstEventId = event.getEventId();
       try {
-        dispatchEvent(deserializer, event, task);
+        dispatchEvent(event, task);
         task.lastEventId = event.getEventId();
         notifyListeners(task);
         lastEventId = event.getEventId();
@@ -257,8 +257,8 @@ public class MetastoreEventHandler implements AutoCloseable {
     return applied;
   }
 
-  private MetastoreEventListener.NotificationTask buildTask(
-      List<NotificationEvent> events, MessageDeserializer deserializer) throws Exception {
+  private MetastoreEventListener.NotificationTask buildTask(List<NotificationEvent> events)
+      throws Exception {
     MetastoreEventListener.NotificationTask task = new MetastoreEventListener.NotificationTask();
     for (int i = 0; i < events.size(); i++) {
       NotificationEvent event = events.get(i);
@@ -270,7 +270,7 @@ public class MetastoreEventHandler implements AutoCloseable {
       if (i == 0) {
         task.firstEventId = event.getEventId();
       }
-      dispatchEvent(deserializer, event, task);
+      dispatchEvent(event, task);
       task.lastEventId = event.getEventId();
     }
     return task;
@@ -328,7 +328,7 @@ public class MetastoreEventHandler implements AutoCloseable {
   }
 
   private void dispatchEvent(
-      MessageDeserializer deserializer, NotificationEvent event,
+      NotificationEvent event,
       MetastoreEventListener.NotificationTask task)
       throws Exception {
     String message = event.getMessage();
