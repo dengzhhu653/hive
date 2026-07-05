@@ -40,7 +40,7 @@ public record IndexConfig(Configuration configuration) {
 
   /** Force a metadata-only commit when this many events are ahead of the last committed checkpoint. */
   public static final String FORCE_FLUSH_EVENT_GAP = "metastore.index.force.flush.event.gap";
-  public static final long FORCE_FLUSH_EVENT_GAP_DEFAULT = 10000L;
+  public static final long FORCE_FLUSH_EVENT_GAP_DEFAULT = 3000L;
 
   /** Tables per metastore fetch batch during leader bootstrap. */
   public static final String BOOTSTRAP_BATCH_SIZE = "metastore.index.bootstrap.batch.size";

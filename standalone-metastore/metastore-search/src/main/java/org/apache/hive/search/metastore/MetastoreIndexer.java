@@ -176,10 +176,13 @@ public final class MetastoreIndexer implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    client.close();
-    handler.close();
-    cluster.close();
-    flushIndexListener.close();
+    try {
+      cluster.close();
+      handler.close();
+    } finally {
+      flushIndexListener.close();
+      client.close();
+    }
   }
 
   private class FlushIndexListener
@@ -302,13 +305,20 @@ public final class MetastoreIndexer implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
       isLeader = false;
-      if (replicateThread != null) {
-        replicateThread.interrupt();
-        replicateThread = null;
+      try {
+        if (replicateThread != null) {
+          replicateThread.interrupt();
+          replicateThread = null;
+        }
+        commitThread.interrupt();
+      } finally {
+        if (lastCommittedEventId != eventId) {
+          indexer.flush(eventId, false, true);
+          lastCommittedEventId = eventId;
+        }
       }
-      commitThread.interrupt();
     }
   }
 }
