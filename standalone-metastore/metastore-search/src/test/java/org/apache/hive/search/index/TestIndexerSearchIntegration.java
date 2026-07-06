@@ -19,7 +19,7 @@ package org.apache.hive.search.index;
 
 import org.apache.hadoop.hive.common.TableName;
 import org.apache.hadoop.hive.metastore.annotation.MetastoreUnitTest;
-import org.apache.hive.search.metastore.MetastoreTableMapper;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hive.search.search.InMemorySearchFixture;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -58,6 +58,31 @@ public class TestIndexerSearchIntegration {
 
       assertFalse(fixture.searchMatch("customers", 5).isEmpty());
     }
+  }
+
+  @Test
+  public void tableKeywordRanksTableNameAboveColumnNameAboveComment() throws Exception {
+    try (InMemorySearchFixture fixture = InMemorySearchFixture.create()) {
+      fixture.mutations().addTable(
+          InMemorySearchFixture.table("hive", "sales", "orders", "revenue summary"));
+      fixture.mutations().addTable(tableWithColumn("hive", "sales", "line_items", "revenue"));
+      fixture.mutations().addTable(
+          InMemorySearchFixture.table("hive", "sales", "revenue", "monthly facts"));
+      fixture.commit(1L);
+
+      List<Map<String, Object>> hits = fixture.searchMatch("revenue", 5);
+      assertEquals(3, hits.size());
+      assertTrue(hits.get(0).get("_id").toString().contains("sales.revenue"));
+      assertTrue(hits.get(1).get("_id").toString().contains("sales.line_items"));
+      assertTrue(hits.get(2).get("_id").toString().contains("sales.orders"));
+    }
+  }
+
+  private static Table tableWithColumn(String catalog, String db, String name, String columnName) {
+    Table table = InMemorySearchFixture.table(catalog, db, name, "unrelated comment");
+    table.getSd().setCols(List.of(
+        new org.apache.hadoop.hive.metastore.api.FieldSchema(columnName, "double", "amount value")));
+    return table;
   }
 
   @Test

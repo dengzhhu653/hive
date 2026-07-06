@@ -40,6 +40,12 @@ public final class MetastoreSchemas {
     fields.put(MetastoreTableMapper.FIELD_COMMENT, lexicalText(MetastoreTableMapper.FIELD_COMMENT));
     fields.put(MetastoreTableMapper.FIELD_COLUMNS, storedText(MetastoreTableMapper.FIELD_COLUMNS));
     fields.put(
+        MetastoreTableMapper.FIELD_COLUMN_NAMES,
+        lexicalText(MetastoreTableMapper.FIELD_COLUMN_NAMES));
+    fields.put(
+        MetastoreTableMapper.FIELD_COLUMN_COMMENTS,
+        lexicalText(MetastoreTableMapper.FIELD_COLUMN_COMMENTS));
+    fields.put(
         MetastoreTableMapper.FIELD_SEARCH_TEXT,
         hybridText(MetastoreTableMapper.FIELD_SEARCH_TEXT, semanticModel));
     return new IndexMapping(indexName, conf, fields);

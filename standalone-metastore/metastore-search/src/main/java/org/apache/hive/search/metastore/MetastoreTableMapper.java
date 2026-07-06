@@ -39,13 +39,23 @@ public final class MetastoreTableMapper {
   public static final String FIELD_LOCATION = "location";
   public static final String FIELD_COMMENT = "comment";
   public static final String FIELD_COLUMNS = "columns";
+  public static final String FIELD_COLUMN_NAMES = "column_names";
+  public static final String FIELD_COLUMN_COMMENTS = "column_comments";
   public static final String FIELD_SEARCH_TEXT = "search_text";
-  /** Lexical fields used for table keyword search. */
-  public static final List<String> KEYWORD_SEARCH_FIELDS =
-      List.of(FIELD_TABLE, FIELD_COMMENT, FIELD_SEARCH_TEXT);
-  /** Max commented data columns included in {@link #FIELD_SEARCH_TEXT} for lexical/semantic indexing. */
+  /** Relative boosts for {@code table_keyword} ranking: table name &gt; column name &gt; comment. */
+  public static final float KEYWORD_BOOST_TABLE_NAME = 3.0f;
+  public static final float KEYWORD_BOOST_COLUMN_NAME = 2.0f;
+  public static final float KEYWORD_BOOST_COMMENT = 1.0f;
+  /** Lexical fields used for table keyword search, highest boost first. */
+  public static final List<KeywordSearchField> KEYWORD_SEARCH_FIELDS = List.of(
+      new KeywordSearchField(FIELD_TABLE, KEYWORD_BOOST_TABLE_NAME),
+      new KeywordSearchField(FIELD_COLUMN_NAMES, KEYWORD_BOOST_COLUMN_NAME),
+      new KeywordSearchField(FIELD_COMMENT, KEYWORD_BOOST_COMMENT),
+      new KeywordSearchField(FIELD_COLUMN_COMMENTS, KEYWORD_BOOST_COMMENT));
+  /** Max commented data columns included in search-oriented column fields. */
   static final int MAX_SEARCH_COLUMNS = 100;
-  // @TODO add a field storing the json format of the table
+
+  public record KeywordSearchField(String field, float boost) {}
 
   private MetastoreTableMapper() {}
 
@@ -71,9 +81,11 @@ public final class MetastoreTableMapper {
       comment = nullToEmpty(table.getParameters().get("comment"));
     }
     String columns = formatColumnsForStorage(table);
+    String columnNames = formatColumnNamesForSearch(table);
+    String columnComments = formatColumnCommentsForSearch(table);
     String searchText = buildSearchText(name, comment, formatColumnsForSearch(table));
 
-    List<Field> fields = new ArrayList<>(8);
+    List<Field> fields = new ArrayList<>(10);
     fields.add(new TextField(FIELD_DB, db));
     fields.add(new TextField(FIELD_TABLE, name.toLowerCase(Locale.ROOT)));
     fields.add(new TextField(FIELD_OWNER, owner));
@@ -81,6 +93,8 @@ public final class MetastoreTableMapper {
     fields.add(new TextField(FIELD_LOCATION, location));
     fields.add(new TextField(FIELD_COMMENT, comment));
     fields.add(new TextField(FIELD_COLUMNS, columns));
+    fields.add(new TextField(FIELD_COLUMN_NAMES, columnNames));
+    fields.add(new TextField(FIELD_COLUMN_COMMENTS, columnComments));
     fields.add(new TextField(FIELD_SEARCH_TEXT, searchText));
     return new TableDocument(new IdField("_id", id), fields, indexMapping);
   }
@@ -108,6 +122,39 @@ public final class MetastoreTableMapper {
       parts.add(formatColumnForStorage(column));
     }
     return String.join("; ", parts);
+  }
+
+  private static String formatColumnNamesForSearch(Table table) {
+    if (table.getSd() == null || table.getSd().getCols() == null) {
+      return "";
+    }
+    List<String> names = new ArrayList<>(table.getSd().getCols().size());
+    for (FieldSchema column : table.getSd().getCols()) {
+      names.add(column.getName().toLowerCase(Locale.ROOT));
+    }
+    return String.join(" ", names);
+  }
+
+  private static String formatColumnCommentsForSearch(Table table) {
+    if (table.getSd() == null || table.getSd().getCols() == null) {
+      return "";
+    }
+    List<FieldSchema> commented = new ArrayList<>();
+    for (FieldSchema column : table.getSd().getCols()) {
+      if (StringUtils.isNotEmpty(column.getComment())) {
+        commented.add(column);
+      }
+    }
+    int limit = Math.min(commented.size(), MAX_SEARCH_COLUMNS);
+    List<String> parts = new ArrayList<>(limit);
+    for (int i = 0; i < limit; i++) {
+      parts.add(commented.get(i).getComment());
+    }
+    String formatted = String.join("; ", parts);
+    if (commented.size() > MAX_SEARCH_COLUMNS) {
+      return formatted + "; ... (+" + (commented.size() - MAX_SEARCH_COLUMNS) + " more)";
+    }
+    return formatted;
   }
 
   private static String formatColumnsForSearch(Table table) {

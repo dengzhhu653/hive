@@ -23,13 +23,21 @@ import org.apache.hadoop.hive.metastore.annotation.MetastoreUnitTest;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hive.search.index.IndexManager;
+import org.apache.hive.search.index.Indexer;
+import org.apache.hive.search.inference.EmbedModelRegistry;
 import org.apache.hive.search.mapping.IndexMapping;
 import org.apache.hive.search.mapping.TableDocument;
 import org.apache.hive.search.mapping.field.Field;
 import org.apache.hive.search.mapping.field.IdField;
 import org.apache.hive.search.mapping.field.TextField;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.MultiTerms;
+import org.apache.lucene.store.ByteBuffersDirectory;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,6 +48,7 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 @Category(MetastoreUnitTest.class)
@@ -94,6 +103,29 @@ public class TestMetastoreTableMapper {
     assertFalse(searchText.contains("MANAGED_TABLE"));
     assertFalse(searchText.contains("alice"));
     assertEquals("id bigint order id; amount double", luceneDoc.get(MetastoreTableMapper.FIELD_COLUMNS));
+    assertEquals("id amount", luceneDoc.get(MetastoreTableMapper.FIELD_COLUMN_NAMES));
+    assertEquals("order id", luceneDoc.get(MetastoreTableMapper.FIELD_COLUMN_COMMENTS));
+  }
+
+  @Test
+  public void columnSearchFieldsSplitNamesAndComments() throws Exception {
+    Configuration conf = new Configuration(false);
+    IndexMapping mapping = MetastoreSchemas.defaultHiveTablesMapping("hive_tables", "bge-small", conf);
+
+    Table table = new Table();
+    table.setCatName("hive");
+    table.setDbName("sales");
+    table.setTableName("orders");
+    table.setSd(new StorageDescriptor());
+    table.getSd().setCols(List.of(
+        new FieldSchema("id", "bigint", "order id"),
+        new FieldSchema("amount", "double", null),
+        new FieldSchema("status", "string", "fulfillment status")));
+
+    TableDocument document = MetastoreTableMapper.fromTable(table, mapping);
+    assertEquals("id amount status", fieldValue(document, MetastoreTableMapper.FIELD_COLUMN_NAMES));
+    assertEquals("order id; fulfillment status",
+        fieldValue(document, MetastoreTableMapper.FIELD_COLUMN_COMMENTS));
   }
 
   @Test
@@ -149,6 +181,73 @@ public class TestMetastoreTableMapper {
     assertTrue(searchText.contains("(+5 more)"));
     assertTrue(storedColumns.contains("col" + (maxCols + 4) + " string comment " + (maxCols + 4)));
     assertFalse(storedColumns.contains("(+5 more)"));
+  }
+
+  @Test
+  public void embedDocumentsPreservesLexicalFields() throws Exception {
+    Configuration conf = new Configuration(false);
+    conf.setBoolean(org.apache.hive.search.config.IndexStateConfig.MEMORY, true);
+    conf.set(org.apache.hive.search.config.InferenceConfig.MODEL_NAME, "stub-model");
+    IndexMapping mapping = MetastoreSchemas.defaultHiveTablesMapping("hive_tables", "stub-model", conf);
+    IndexManager indexManager = IndexManager.open(mapping, conf);
+    EmbedModelRegistry registry = new EmbedModelRegistry(
+        java.util.Map.of("stub-model", new org.apache.hive.search.testutil.StubEmbedModel("stub-model")));
+    Indexer indexer = new Indexer(indexManager, registry);
+    indexer.initialize();
+
+    Table table = sampleTable();
+    Map<String, String> params = new HashMap<>();
+    params.put("comment", "daily sales orders");
+    table.setParameters(params);
+
+    TableDocument doc = MetastoreTableMapper.fromTable(table, mapping);
+    TableDocument embedded = indexer.embedDocuments(java.util.List.of(doc)).get(0);
+    java.util.Set<String> fieldNames = new java.util.HashSet<>();
+    for (Field field : embedded.fields()) {
+      if (field instanceof TextField textField) {
+        fieldNames.add(textField.name());
+      }
+    }
+    assertTrue(fieldNames.contains(MetastoreTableMapper.FIELD_COMMENT));
+    assertTrue(fieldNames.contains(MetastoreTableMapper.FIELD_SEARCH_TEXT));
+
+    ByteBuffersDirectory directory = new ByteBuffersDirectory();
+    try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(mapping.analyzer()))) {
+      writer.addDocuments(embedded.toDocuments());
+    }
+    try (DirectoryReader reader = DirectoryReader.open(directory)) {
+      assertNotNull(MultiTerms.getTerms(reader, MetastoreTableMapper.FIELD_COMMENT));
+    }
+    indexer.close();
+    indexManager.close();
+    registry.close();
+  }
+
+  @Test
+  public void lexicalFieldsAreIndexedForKeywordSearch() throws Exception {
+    Configuration conf = new Configuration(false);
+    IndexMapping mapping = MetastoreSchemas.defaultHiveTablesMapping("hive_tables", "bge-small", conf);
+
+    Table table = new Table();
+    table.setCatName("hive");
+    table.setDbName("sales");
+    table.setTableName("orders");
+    table.setSd(new StorageDescriptor());
+    Map<String, String> params = new HashMap<>();
+    params.put("comment", "daily sales orders");
+    table.setParameters(params);
+
+    TableDocument document = MetastoreTableMapper.fromTable(table, mapping);
+    document = withSearchTextEmbedding(document, mapping, new float[] {0.1f, 0.2f, 0.3f});
+    ByteBuffersDirectory directory = new ByteBuffersDirectory();
+    try (IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(mapping.analyzer()))) {
+      writer.addDocuments(document.toDocuments());
+    }
+    try (DirectoryReader reader = DirectoryReader.open(directory)) {
+      assertNotNull(MultiTerms.getTerms(reader, MetastoreTableMapper.FIELD_COMMENT));
+      assertNotNull(MultiTerms.getTerms(reader, MetastoreTableMapper.FIELD_TABLE));
+      assertNotNull(MultiTerms.getTerms(reader, MetastoreTableMapper.FIELD_TABLE + ".filter"));
+    }
   }
 
   @Test

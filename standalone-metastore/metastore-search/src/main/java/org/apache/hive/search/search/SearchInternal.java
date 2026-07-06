@@ -46,6 +46,8 @@ import org.apache.lucene.search.BayesianScoreEstimator;
 import org.apache.lucene.search.BayesianScoreQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BoostQuery;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.LogOddsFusionQuery;
@@ -165,9 +167,6 @@ public final class SearchInternal implements AutoCloseable {
     if (queryNode.containsKey("table_keyword")) {
       return compileTableKeywordQuery(queryNode.get("table_keyword").toString());
     }
-    if (queryNode.containsKey("match")) {
-      return compileMatchQuery(queryNode);
-    }
     if (queryNode.containsKey("semantic")) {
       return compileSemanticQuery(queryNode, knnK);
     }
@@ -180,20 +179,31 @@ public final class SearchInternal implements AutoCloseable {
   private Query compileTableKeywordQuery(String queryText) throws SearchException, IOException {
     BooleanQuery.Builder builder = new BooleanQuery.Builder();
     boolean added = false;
-    for (String field : MetastoreTableMapper.KEYWORD_SEARCH_FIELDS) {
+    for (MetastoreTableMapper.KeywordSearchField keywordField : MetastoreTableMapper.KEYWORD_SEARCH_FIELDS) {
+      String field = keywordField.field();
+      float boost = keywordField.boost();
       FieldSchema schema = mapping.fieldSchema(field);
       if (!(schema instanceof FieldSchema.TextFieldSchema text)) {
         continue;
       }
       if (text.filter()) {
-        builder.add(compileFilterKeywordQuery(field, queryText), BooleanClause.Occur.SHOULD);
+        builder.add(
+            boostKeywordQuery(compileFilterKeywordQuery(field, queryText), boost),
+            BooleanClause.Occur.SHOULD);
+        if (text.search().lexical()) {
+          builder.add(
+              boostKeywordQuery(compileMatchQuery(field, queryText), boost),
+              BooleanClause.Occur.SHOULD);
+        }
         added = true;
         continue;
       }
       if (!text.search().lexical()) {
         continue;
       }
-      builder.add(compileMatchQuery(field, queryText), BooleanClause.Occur.SHOULD);
+      builder.add(
+          boostKeywordQuery(compileMatchQuery(field, queryText), boost),
+          BooleanClause.Occur.SHOULD);
       added = true;
     }
     if (!added) {
@@ -202,23 +212,16 @@ public final class SearchInternal implements AutoCloseable {
     return builder.build();
   }
 
+  private static Query boostKeywordQuery(Query query, float boost) {
+    return new BoostQuery(new ConstantScoreQuery(query), boost);
+  }
+
   private Query compileFilterKeywordQuery(String field, String queryText) {
     String normalized = queryText.trim().toLowerCase(Locale.ROOT);
     if (normalized.isEmpty()) {
       return new BooleanQuery.Builder().build();
     }
     return new TermQuery(new Term(field + TableDocument.FILTER_SUFFIX, normalized));
-  }
-
-  private Query compileMatchQuery(Map<String, Object> queryNode)
-      throws SearchException, IOException {
-    @SuppressWarnings("unchecked")
-    Map<String, Object> matchBody = (Map<String, Object>) queryNode.get("match");
-    if (matchBody.size() != 1) {
-      throw new SearchException("match query must contain exactly one field");
-    }
-    Map.Entry<String, Object> entry = matchBody.entrySet().iterator().next();
-    return compileMatchQuery(entry.getKey(), entry.getValue().toString());
   }
 
   private Query compileMatchQuery(String field, String queryText)

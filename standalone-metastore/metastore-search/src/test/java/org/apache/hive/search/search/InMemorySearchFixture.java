@@ -153,6 +153,10 @@ public final class InMemorySearchFixture implements AutoCloseable {
     return indexManager;
   }
 
+  public Indexer indexer() {
+    return indexer;
+  }
+
   public SearcherManager searcherManager() {
     return searcherManager;
   }

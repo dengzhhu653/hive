@@ -92,7 +92,7 @@ public final class Indexer implements AutoCloseable {
   }
 
   /** Writes already-embedded documents to Lucene. */
-  private void writeDocuments(List<TableDocument> docs) throws IOException, IndexException {
+  public void writeDocuments(List<TableDocument> docs) throws IOException, IndexException {
     List<Document> luceneDocs = new ArrayList<>();
     List<String> ids = new ArrayList<>();
     for (TableDocument doc : docs) {
@@ -103,22 +103,24 @@ public final class Indexer implements AutoCloseable {
     writer.addDocuments(luceneDocs);
   }
 
-  private List<TableDocument> embedDocuments(List<TableDocument> tableDocs)
+  public List<TableDocument> embedDocuments(List<TableDocument> tableDocs)
       throws IndexException {
     long start = System.currentTimeMillis();
     List<TableDocument> result = new ArrayList<>(tableDocs.size());
     Map<String, ListMultimap<TextField, TableDocument>> modelPerTxt = new HashMap<>();
     for (TableDocument doc : tableDocs) {
-      List<Field> newFields = new ArrayList<>();
-      TableDocument newDoc = new TableDocument(doc.idField(), newFields, indexManager.mapping());
+      TableDocument newDoc = new TableDocument(doc.idField(), List.of(), indexManager.mapping());
       result.add(newDoc);
       for (Field field : doc.fields()) {
+        if (field instanceof org.apache.hive.search.mapping.field.IdField) {
+          continue;
+        }
         if (field instanceof TextField text) {
           FieldSchema schema = indexManager.mapping().fieldSchema(text.name());
           if (schema instanceof FieldSchema.TextFieldSchema textSchema
               && textSchema.search().semantic()) {
             if (text.embedding() != null) {
-              newFields.add(field);
+              newDoc.appendField(field);
             } else {
               String modelRef = textSchema.search().semanticModel();
               ListMultimap<TextField, TableDocument> multimapText =
@@ -126,10 +128,10 @@ public final class Indexer implements AutoCloseable {
               multimapText.put(text, newDoc);
             }
           } else {
-            newFields.add(field);
+            newDoc.appendField(field);
           }
         } else {
-          newFields.add(field);
+          newDoc.appendField(field);
         }
       }
     }

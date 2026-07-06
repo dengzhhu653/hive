@@ -52,9 +52,7 @@ public class TableDocument {
 
   public void fill(TextField field, FieldSchema.TextFieldSchema schema)
       throws IndexException {
-    if (schema.store()) {
-      document.add(new StoredField(field.name(), field.value()));
-    }
+    String trimmed = trim(field.value(), MAX_FIELD_SEARCH_SIZE);
 
     if (schema.filter()) {
       document.add(
@@ -62,10 +60,12 @@ public class TableDocument {
               org.apache.lucene.document.Field.Store.NO));
     }
     if (schema.search().lexical()) {
-      String trimmed = trim(field.value(), MAX_FIELD_SEARCH_SIZE);
-      document.add(
-          new org.apache.lucene.document.TextField(field.name(), trimmed,
-              org.apache.lucene.document.Field.Store.NO));
+      org.apache.lucene.document.Field.Store store =
+          schema.store() ? org.apache.lucene.document.Field.Store.YES
+              : org.apache.lucene.document.Field.Store.NO;
+      document.add(new org.apache.lucene.document.TextField(field.name(), trimmed, store));
+    } else if (schema.store()) {
+      document.add(new StoredField(field.name(), field.value()));
     }
     if (schema.search().semantic()) {
       if (field.embedding() == null) {
