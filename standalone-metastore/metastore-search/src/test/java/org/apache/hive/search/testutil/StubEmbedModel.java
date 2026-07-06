@@ -19,6 +19,7 @@ package org.apache.hive.search.testutil;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hive.search.exception.IndexException;
 import org.apache.hive.search.inference.EmbedModel;
@@ -28,9 +29,14 @@ public final class StubEmbedModel implements EmbedModel {
   private static final int DIMENSION = 8;
 
   private final String name;
+  private final AtomicInteger encodeBatchCalls = new AtomicInteger();
 
   public StubEmbedModel(String name) {
     this.name = name;
+  }
+
+  public int encodeBatchCalls() {
+    return encodeBatchCalls.get();
   }
 
   @Override
@@ -73,6 +79,7 @@ public final class StubEmbedModel implements EmbedModel {
 
   @Override
   public float[][] encodeBatch(TaskType task, String[] texts) throws IndexException {
+    encodeBatchCalls.incrementAndGet();
     return Arrays.stream(texts).map(text -> encode(task, text)).toArray(float[][]::new);
   }
 }

@@ -27,21 +27,27 @@ import org.apache.hive.search.exception.InitializeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public record EmbedModelRegistry(Map<String, EmbedModel> models)
+public record EmbedModelRegistry(Map<String, EmbedModel> models, EmbeddingCache embeddingCache)
     implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(EmbedModelRegistry.class);
 
   public EmbedModelRegistry(Map<String, EmbedModel> models) {
+    this(models, EmbeddingCache.disabled());
+  }
+
+  public EmbedModelRegistry(Map<String, EmbedModel> models, EmbeddingCache embeddingCache) {
     this.models = Map.copyOf(models);
+    this.embeddingCache = embeddingCache;
   }
 
   public static EmbedModelRegistry create(Configuration configuration)
       throws InitializeException, IOException {
     InferenceConfig inference = new InferenceConfig(configuration);
+    EmbeddingCache embeddingCache = EmbeddingCache.create(configuration);
     long start = System.currentTimeMillis();
     InferenceConfig.EmbeddingModelSpec embeddingConfig = inference.embedding();
     String modelName = inference.modelName();
-    LangChain4jEmbedModel embedModel = new LangChain4jEmbedModel(modelName, embeddingConfig.getModelDir(),
+    LocalOnnxEmbeddingModel embedModel = new LocalOnnxEmbeddingModel(modelName, embeddingConfig.getModelDir(),
         embeddingConfig.getPrompt());
     long warmupStart = System.currentTimeMillis();
     try {
@@ -53,7 +59,7 @@ public record EmbedModelRegistry(Map<String, EmbedModel> models)
     LOG.info("Loaded embedding model '{}' from {} in {}ms (warmup {}ms)",
         modelName, embeddingConfig.getModelDir(), System.currentTimeMillis() - start,
         System.currentTimeMillis() - warmupStart);
-    return new EmbedModelRegistry(Map.of(modelName, embedModel));
+    return new EmbedModelRegistry(Map.of(modelName, embedModel), embeddingCache);
   }
 
   public EmbedModel get(String modelRef) throws IndexException {

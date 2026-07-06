@@ -26,28 +26,29 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.hadoop.hive.common.DatabaseName;
 import org.apache.hadoop.hive.metastore.Batchable;
 import org.apache.hive.search.exception.IndexException;
+import org.apache.hive.search.inference.EmbedModel;
+import org.apache.hive.search.inference.EmbedModelRegistry;
+import org.apache.hive.search.inference.EmbeddingCache;
 import org.apache.hive.search.mapping.FieldSchema;
 import org.apache.hive.search.mapping.TableDocument;
 import org.apache.hive.search.mapping.field.Field;
 import org.apache.hive.search.mapping.field.TextField;
-import org.apache.hive.search.inference.EmbedModel;
-import org.apache.hive.search.inference.EmbedModelRegistry;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.KeepOnlyLastCommitDeletionPolicy;
 import org.apache.lucene.index.SnapshotDeletionPolicy;
-import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,12 +58,14 @@ public final class Indexer implements AutoCloseable {
 
   private final IndexManager indexManager;
   private final EmbedModelRegistry modelRegistry;
+  private final EmbeddingCache embeddingCache;
   private SnapshotDeletionPolicy snapshotter;
   private IndexWriter writer;
 
   public Indexer(IndexManager index, EmbedModelRegistry registry) {
     this.indexManager = index;
     this.modelRegistry = registry;
+    this.embeddingCache = registry.embeddingCache();
   }
 
   public void initialize() throws IOException {
@@ -88,7 +91,19 @@ public final class Indexer implements AutoCloseable {
     }
   }
 
-  private List<TableDocument> embedSearchTxt(List<TableDocument> tableDocs)
+  /** Writes already-embedded documents to Lucene. */
+  private void writeDocuments(List<TableDocument> docs) throws IOException, IndexException {
+    List<Document> luceneDocs = new ArrayList<>();
+    List<String> ids = new ArrayList<>();
+    for (TableDocument doc : docs) {
+      ids.add(doc.idField().value());
+      luceneDocs.addAll(doc.toDocuments());
+    }
+    delete(ids.toArray(new String[0]));
+    writer.addDocuments(luceneDocs);
+  }
+
+  private List<TableDocument> embedDocuments(List<TableDocument> tableDocs)
       throws IndexException {
     long start = System.currentTimeMillis();
     List<TableDocument> result = new ArrayList<>(tableDocs.size());
@@ -119,12 +134,17 @@ public final class Indexer implements AutoCloseable {
       }
     }
     int totalFields = modelPerTxt.values().stream().mapToInt(ListMultimap::size).sum();
+    long cacheHitsBefore = embeddingCache.hits();
+    long cacheMissesBefore = embeddingCache.misses();
     for (Map.Entry<String, ListMultimap<TextField, TableDocument>> entry : modelPerTxt.entrySet()) {
       embedInBatch(entry.getKey(), modelRegistry.get(entry.getKey()), entry.getValue());
     }
     if (totalFields > 0) {
-      LOG.info("Embedded {} semantic field(s) across {} document(s) in {}ms",
-          totalFields, tableDocs.size(), System.currentTimeMillis() - start);
+      long cacheHits = embeddingCache.hits() - cacheHitsBefore;
+      long cacheMisses = embeddingCache.misses() - cacheMissesBefore;
+      LOG.info("Embedded {} semantic field(s) across {} document(s) in {}ms"
+              + " (embedding cache hits={}, misses={})",
+          totalFields, tableDocs.size(), System.currentTimeMillis() - start, cacheHits, cacheMisses);
     }
     return result;
   }
@@ -144,21 +164,29 @@ public final class Indexer implements AutoCloseable {
           long batchStart = System.currentTimeMillis();
           ListMultimap<String, TextField> valueToTxt = ArrayListMultimap.create();
           batchFields.forEach(f -> valueToTxt.put(f.value(), f));
-          String[] texts = valueToTxt.keySet().toArray(new String[0]);
-          float[][] embeddings = embedModel.encodeBatch(EmbedModel.TaskType.DOCUMENT, texts);
-          for (int i = 0; i < texts.length; i++) {
-            String input = texts[i];
-            float[] embedding = embeddings[i];
-            List<TextField> fields = valueToTxt.get(input);
-            for (TextField tf : fields) {
-              List<TableDocument> documents = textDocs.get(tf);
-              for (TableDocument document : documents) {
-                document.appendField(tf.withEmbedding(embedding));
-              }
+          List<String> missTexts = new ArrayList<>();
+          for (String text : valueToTxt.keySet()) {
+            Optional<float[]> cached =
+                embeddingCache.get(modelRef, EmbedModel.TaskType.DOCUMENT, text);
+            if (cached.isPresent()) {
+              applyEmbedding(valueToTxt, textDocs, text, cached.get());
+            } else {
+              missTexts.add(text);
             }
           }
-          LOG.debug("Model '{}' embedded batch of {} unique text(s) in {}ms",
-              modelRef, texts.length, System.currentTimeMillis() - batchStart);
+          if (!missTexts.isEmpty()) {
+            String[] texts = missTexts.toArray(new String[0]);
+            float[][] embeddings = embedModel.encodeBatch(EmbedModel.TaskType.DOCUMENT, texts);
+            for (int i = 0; i < texts.length; i++) {
+              String text = texts[i];
+              float[] embedding = embeddings[i];
+              embeddingCache.put(modelRef, EmbedModel.TaskType.DOCUMENT, text, embedding);
+              applyEmbedding(valueToTxt, textDocs, text, embedding);
+            }
+          }
+          LOG.debug("Model '{}' embedded batch of {} unique text(s), {} cache miss(es) in {}ms",
+              modelRef, valueToTxt.keySet().size(), missTexts.size(),
+              System.currentTimeMillis() - batchStart);
           return List.of();
         }
       });
@@ -170,21 +198,25 @@ public final class Indexer implements AutoCloseable {
         modelRef, textDocs.size(), uniqueTexts, System.currentTimeMillis() - start);
   }
 
-  public void addDocuments(List<TableDocument> docs) throws IOException, IndexException {
-    List<TableDocument> transformedDocs = embedSearchTxt(docs);
-    List<Document> luceneDocs = new ArrayList<>();
-    List<String> ids = new ArrayList<>();
-    for (TableDocument doc : transformedDocs) {
-      ids.add(doc.idField().value());
-      luceneDocs.addAll(doc.toDocuments());
+  private static void applyEmbedding(ListMultimap<String, TextField> valueToTxt,
+      ListMultimap<TextField, TableDocument> textDocs, String text, float[] embedding) {
+    for (TextField tf : valueToTxt.get(text)) {
+      for (TableDocument document : textDocs.get(tf)) {
+        document.appendField(tf.withEmbedding(embedding));
+      }
     }
+  }
 
-    delete(ids.toArray(new String[0]));
-    writer.addDocuments(luceneDocs);
+  public void addDocuments(List<TableDocument> docs) throws IOException, IndexException {
+    writeDocuments(embedDocuments(docs));
   }
 
   public IndexWriter writer() {
     return writer;
+  }
+
+  public EmbeddingCache embeddingCache() {
+    return embeddingCache;
   }
 
   public boolean flush(long lastEventId, boolean pushToRemote)

@@ -34,15 +34,15 @@ import org.apache.hive.search.exception.IndexException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class LangChain4jEmbedModel implements EmbedModel {
-  private static final Logger LOG = LoggerFactory.getLogger(LangChain4jEmbedModel.class);
+public final class LocalOnnxEmbeddingModel implements EmbedModel {
+  private static final Logger LOG = LoggerFactory.getLogger(LocalOnnxEmbeddingModel.class);
 
   private final String name;
   private final OnnxEmbeddingModel model;
   private final EmbeddingPrompt prompt;
   private final ExecutorService inferExecutor;
 
-  public LangChain4jEmbedModel(String name, Path modelDir, EmbeddingPrompt prompt) {
+  public LocalOnnxEmbeddingModel(String name, Path modelDir, EmbeddingPrompt prompt) {
     this.name = name;
     this.prompt = prompt == null ? EmbeddingPrompt.none() : prompt;
     this.inferExecutor = Executors.newSingleThreadExecutor(r -> {

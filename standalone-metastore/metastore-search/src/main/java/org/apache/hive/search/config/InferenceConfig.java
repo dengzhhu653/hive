@@ -40,6 +40,12 @@ public record InferenceConfig(Configuration configuration) {
   public static final String EMBEDDING_PROMPT_DOC = "metastore.inference.embedding.prompt.doc";
   public static final String EMBEDDING_PROMPT_QUERY = "metastore.inference.embedding.prompt.query";
 
+  public static final String EMBEDDING_CACHE_ENABLED = "metastore.inference.embedding.cache.enabled";
+  public static final boolean EMBEDDING_CACHE_ENABLED_DEFAULT = true;
+
+  public static final String EMBEDDING_CACHE_MAX_ENTRIES = "metastore.inference.embedding.cache.max.entries";
+  public static final int EMBEDDING_CACHE_MAX_ENTRIES_DEFAULT = 100_000;
+
   public EmbeddingModelSpec embedding() throws InitializeException, IOException {
     String modelName = modelName();
     if (StringUtils.isEmpty(modelName)) {
@@ -87,6 +93,14 @@ public record InferenceConfig(Configuration configuration) {
 
   public String modelName() {
     return configuration.get(MODEL_NAME);
+  }
+
+  public boolean isEmbeddingCacheEnabled() {
+    return configuration.getBoolean(EMBEDDING_CACHE_ENABLED, EMBEDDING_CACHE_ENABLED_DEFAULT);
+  }
+
+  public int getEmbeddingCacheMaxEntries() {
+    return configuration.getInt(EMBEDDING_CACHE_MAX_ENTRIES, EMBEDDING_CACHE_MAX_ENTRIES_DEFAULT);
   }
 
   public static class EmbeddingModelSpec {

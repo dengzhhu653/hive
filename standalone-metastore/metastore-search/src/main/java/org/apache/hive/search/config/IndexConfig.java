@@ -63,6 +63,10 @@ public record IndexConfig(Configuration configuration) {
       "metastore.index.bootstrap.progress.interval.ms";
   public static final long BOOTSTRAP_PROGRESS_INTERVAL_MS_DEFAULT = 30_000L;
 
+  /** Parallel embedding workers during bootstrap (overlap fetch with inference). */
+  public static final String BOOTSTRAP_EMBED_THREADS = "metastore.index.bootstrap.embed.threads";
+  public static final int BOOTSTRAP_EMBED_THREADS_DEFAULT = 1;
+
   /** Max HMS events fetched per poll. */
   public static final String EVENT_POLL_MAX = "metastore.index.event.poll.max";
   public static final int EVENT_POLL_MAX_DEFAULT = 1000;
@@ -118,6 +122,10 @@ public record IndexConfig(Configuration configuration) {
 
   public int getBootstrapFetchThreads() {
     return configuration.getInt(BOOTSTRAP_FETCH_THREADS, BOOTSTRAP_FETCH_THREADS_DEFAULT);
+  }
+
+  public int getBootstrapEmbedThreads() {
+    return configuration.getInt(BOOTSTRAP_EMBED_THREADS, BOOTSTRAP_EMBED_THREADS_DEFAULT);
   }
 
   public int getBootstrapFlushBatches() {

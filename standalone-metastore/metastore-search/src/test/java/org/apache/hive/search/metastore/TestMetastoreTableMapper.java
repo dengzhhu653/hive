@@ -132,7 +132,8 @@ public class TestMetastoreTableMapper {
     table.setTableName("events");
     table.setSd(new StorageDescriptor());
     List<FieldSchema> cols = new ArrayList<>();
-    for (int i = 0; i < MetastoreTableMapper.MAX_SEARCH_COLUMNS + 5; i++) {
+    int maxCols = MetastoreTableMapper.MAX_SEARCH_COLUMNS;
+    for (int i = 0; i < maxCols + 5; i++) {
       cols.add(new FieldSchema("col" + i, "string", "comment " + i));
     }
     table.getSd().setCols(cols);
@@ -142,10 +143,11 @@ public class TestMetastoreTableMapper {
     String storedColumns = fieldValue(document, MetastoreTableMapper.FIELD_COLUMNS);
 
     assertTrue(searchText.contains("col0 comment 0"));
-    assertTrue(searchText.contains("col49 comment 49"));
-    assertFalse(searchText.contains("col50 comment 50"));
+    assertTrue(searchText.contains("col" + (maxCols - 1) + " comment " + (maxCols - 1)));
+    assertFalse(searchText.contains("; col" + maxCols + " comment " + maxCols + ";"));
+    assertFalse(searchText.endsWith("; col" + maxCols + " comment " + maxCols));
     assertTrue(searchText.contains("(+5 more)"));
-    assertTrue(storedColumns.contains("col54 string comment 54"));
+    assertTrue(storedColumns.contains("col" + (maxCols + 4) + " string comment " + (maxCols + 4)));
     assertFalse(storedColumns.contains("(+5 more)"));
   }
 
