@@ -30,7 +30,7 @@ public final class SearchReqResp {
     HYBRID
   }
 
-  record Request(
+  public record Request(
       Map<String, Object> query,
       List<String> fields,
       int size,
@@ -41,7 +41,7 @@ public final class SearchReqResp {
       fields = fields == null ? List.of() : List.copyOf(fields);
     }
 
-    static Request validated(Map<String, Object> query, List<String> fields, int size,
+    public static Request validated(Map<String, Object> query, List<String> fields, int size,
         String catalogName, String databaseName) throws SearchException {
       if (size < 0) {
         throw new SearchException("size must be non-negative");
@@ -50,6 +50,6 @@ public final class SearchReqResp {
     }
   }
 
-  record Response(List<Map<String, Object>> hits, long total) {}
+  public record Response(List<Map<String, Object>> hits, long total) {}
 
 }

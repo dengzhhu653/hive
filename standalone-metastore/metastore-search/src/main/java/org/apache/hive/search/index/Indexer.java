@@ -22,6 +22,7 @@ import com.google.common.collect.ListMultimap;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,9 +179,7 @@ public final class Indexer implements AutoCloseable {
       luceneDocs.addAll(doc.toDocuments());
     }
 
-    Term[] terms = ids.stream().map(id -> new Term("_id" + TableDocument.FILTER_SUFFIX, id))
-        .toArray(Term[]::new);
-    writer.deleteDocuments(terms);
+    delete(ids.toArray(new String[0]));
     writer.addDocuments(luceneDocs);
   }
 
@@ -221,13 +220,10 @@ public final class Indexer implements AutoCloseable {
       return 0;
     }
     int before = writer.getDocStats().numDocs;
-    BooleanQuery.Builder builder = new BooleanQuery.Builder();
-    for (String docId : docIds) {
-      Query query = new TermQuery(new Term("_id" + TableDocument.FILTER_SUFFIX, docId));
-      builder.add(query, BooleanClause.Occur.SHOULD);
-    }
-    builder.setMinimumNumberShouldMatch(1);
-    writer.deleteDocuments(builder.build());
+    Term[] terms = Arrays.stream(docIds)
+        .map(id -> new Term("_id" + TableDocument.FILTER_SUFFIX, id))
+        .toArray(Term[]::new);
+    writer.deleteDocuments(terms);
     int after = writer.getDocStats().numDocs;
     return before - after;
   }

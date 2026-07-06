@@ -29,6 +29,7 @@ import org.apache.hadoop.hive.metastore.api.NotificationEventRequest;
 import org.apache.hadoop.hive.metastore.leader.LeaderElection;
 import org.apache.hive.search.mapping.TableDocument;
 import org.apache.hive.search.exception.IndexException;
+import org.apache.hive.search.exception.IndexNotHealthyException;
 import org.apache.hive.search.config.IndexConfig;
 import org.apache.hive.search.index.Indexer;
 import org.apache.hive.search.index.IndexManager;
@@ -46,16 +47,23 @@ public final class MetastoreIndexer implements AutoCloseable {
   private final MetastoreEventHandler handler;
   private final IndexManager indexManager;
   private final FlushIndexListener flushIndexListener;
+  private final boolean shareBootstrapFetchClient;
 
   public MetastoreIndexer(Configuration configuration, IndexManager indexManager, Indexer indexer)
       throws Exception {
     this(configuration, indexManager, indexer,
-        RetryingMetaStoreClient.getProxy(configuration, true));
+        RetryingMetaStoreClient.getProxy(configuration, true), false);
   }
 
   MetastoreIndexer(Configuration configuration, IndexManager indexManager, Indexer indexer,
       IMetaStoreClient client) throws Exception {
+    this(configuration, indexManager, indexer, client, true);
+  }
+
+  MetastoreIndexer(Configuration configuration, IndexManager indexManager, Indexer indexer,
+      IMetaStoreClient client, boolean shareBootstrapFetchClient) throws Exception {
     this.client = client;
+    this.shareBootstrapFetchClient = shareBootstrapFetchClient;
     this.indexer = indexer;
     this.indexManager = indexManager;
     this.flushIndexListener = new FlushIndexListener(configuration);
@@ -135,13 +143,46 @@ public final class MetastoreIndexer implements AutoCloseable {
         indexManager.mapping().configuration(),
         indexManager.mapping(),
         indexer,
-        client).run(notificationId);
+        client,
+        shareBootstrapFetchClient).run(notificationId);
     return notificationId;
   }
 
   public void start() throws Exception {
     handler.start(lastEventId);
     flushIndexListener.start(lastEventId);
+  }
+
+  /** Package-private for integration tests. */
+  int pollEvents(int count) throws IndexNotHealthyException {
+    return handler.getNextMetastoreEvents(count);
+  }
+
+  /** Package-private for integration tests. */
+  void flushCheckpoint() throws IOException {
+    try {
+      indexer.flush(client.getCurrentNotificationEventId().getEventId(), false, true);
+    } catch (Exception e) {
+      if (e instanceof IOException ioException) {
+        throw ioException;
+      }
+      throw new IOException("Failed to flush index checkpoint", e);
+    }
+  }
+
+  /** Package-private for integration tests. */
+  IndexManager indexManager() {
+    return indexManager;
+  }
+
+  /** Package-private for integration tests. */
+  Indexer indexer() {
+    return indexer;
+  }
+
+  /** Package-private for integration tests. */
+  void syncBackup() throws IOException {
+    indexer.syncBackup();
   }
 
   /**
