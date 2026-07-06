@@ -50,6 +50,17 @@ public class TestIndexerSearchIntegration {
   }
 
   @Test
+  public void tableKeywordMatchesTableNameWhenCommentDoesNot() throws Exception {
+    try (InMemorySearchFixture fixture = InMemorySearchFixture.create()) {
+      fixture.mutations().addTable(
+          InMemorySearchFixture.table("hive", "sales", "customers", "customer master data"));
+      fixture.commit(1L);
+
+      assertFalse(fixture.searchMatch("customers", 5).isEmpty());
+    }
+  }
+
+  @Test
   public void incrementalDropRemovesTableFromSearchResults() throws Exception {
     try (InMemorySearchFixture fixture = InMemorySearchFixture.create()) {
       fixture.mutations().addTable(

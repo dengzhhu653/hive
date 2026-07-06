@@ -19,7 +19,6 @@ package org.apache.hive.search.metastore;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.MetaStoreTestUtils;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf;
 import org.apache.hadoop.hive.metastore.conf.MetastoreConf.ConfVars;
@@ -33,7 +32,7 @@ import org.apache.hive.search.index.IndexManager;
 import org.apache.hive.search.index.store.LocalStateClient;
 import org.apache.hive.search.inference.EmbedModelRegistry;
 import org.apache.hive.search.mapping.IndexMapping;
-import org.apache.hive.search.search.SearchIO;
+import org.apache.hive.search.search.SearchInternal;
 import org.apache.hive.search.search.SearchReqResp;
 import org.apache.hive.search.testutil.InMemoryIndexStateClient;
 import org.apache.hive.search.testutil.RealMetastoreServer;
@@ -209,10 +208,10 @@ public final class RealMetastoreSearchSession implements AutoCloseable {
 
   public List<Map<String, Object>> searchMatch(String text, int limit) throws Exception {
     refreshSearcher();
-    try (SearchIO searchIO = new SearchIO(
+    try (SearchInternal searchIO = new SearchInternal(
         searcherManager, indexManager, modelRegistry, searchConfig, bayesianParameters)) {
       return searchIO.search(SearchReqResp.Request.validated(
-          Map.of("match", Map.of(MetastoreTableMapper.FIELD_SEARCH_TEXT, text)),
+          Map.of("table_keyword", text),
           List.of(MetastoreTableMapper.FIELD_TABLE, MetastoreTableMapper.FIELD_COMMENT),
           limit,
           null,
@@ -225,7 +224,7 @@ public final class RealMetastoreSearchSession implements AutoCloseable {
     Map<String, Object> hybridBody = Map.of(
         "field", MetastoreTableMapper.FIELD_SEARCH_TEXT,
         "query", queryText);
-    try (SearchIO searchIO = new SearchIO(
+    try (SearchInternal searchIO = new SearchInternal(
         searcherManager, indexManager, modelRegistry, searchConfig, bayesianParameters)) {
       return searchIO.search(SearchReqResp.Request.validated(
           Map.of("hybrid", hybridBody),

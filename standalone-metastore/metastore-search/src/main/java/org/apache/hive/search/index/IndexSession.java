@@ -32,7 +32,7 @@ import org.apache.hive.search.inference.EmbedModelRegistry;
 import org.apache.hive.search.metastore.MetastoreIndexer;
 import org.apache.hive.search.metastore.MetastoreSchemas;
 import org.apache.hive.search.metastore.MetastoreTableMapper;
-import org.apache.hive.search.search.SearchIO;
+import org.apache.hive.search.search.SearchInternal;
 import org.apache.lucene.search.BayesianScoreEstimator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.SearcherManager;
@@ -95,12 +95,12 @@ public final class IndexSession implements AutoCloseable {
     }
   }
 
-  public SearchIO getSearcher() throws IOException {
+  public SearchInternal getSearcher() throws IOException {
     if (parameters == null) {
       throw new IndexNotReadyException("Index session is not ready for search requests");
     }
     indexManager.checkStatus();
-    return new SearchIO(searcherManager, indexManager,
+    return new SearchInternal(searcherManager, indexManager,
         modelRegistry, searchConfig, parameters);
   }
 

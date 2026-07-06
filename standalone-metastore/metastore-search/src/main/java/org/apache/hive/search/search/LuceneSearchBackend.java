@@ -90,7 +90,7 @@ public final class LuceneSearchBackend implements SearchBackend {
     }
     List<String> fields = buildReturnFields(query);
     int limit = query.limit() > 0 ? query.limit() : searchConfig.getDefaultLimit();
-    try (SearchIO searcher = session.getSearcher()) {
+    try (SearchInternal searcher = session.getSearcher()) {
       SearchReqResp.Response response = searcher.search(SearchReqResp.Request.validated(
           toInternalQuery(query),
           fields,
@@ -126,8 +126,7 @@ public final class LuceneSearchBackend implements SearchBackend {
   private static Map<String, Object> toInternalQuery(SearchQuery query) {
     String text = query.queryText();
     return switch (query.mode()) {
-      case KEYWORD -> Map.of("match",
-          Map.of(MetastoreTableMapper.FIELD_SEARCH_TEXT, text));
+      case KEYWORD -> Map.of("table_keyword", text);
       case SEMANTIC -> Map.of("semantic",
           Map.of(MetastoreTableMapper.FIELD_SEARCH_TEXT, text));
       case HYBRID -> Map.of("hybrid", text);

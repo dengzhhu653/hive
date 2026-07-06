@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -55,7 +56,7 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.TopDocs;
 
-public final class SearchIO implements AutoCloseable {
+public final class SearchInternal implements AutoCloseable {
   private final EmbedModelRegistry modelRegistry;
   private final IndexSearcher searcher;
   private final SearcherManager searcherManager;
@@ -63,7 +64,7 @@ public final class SearchIO implements AutoCloseable {
   private final SearchConfig searchConfig;
   private final BayesianScoreEstimator.Parameters parameters;
 
-  public SearchIO(SearcherManager manager,
+  public SearchInternal(SearcherManager manager,
       IndexManager indexManager,
       EmbedModelRegistry registry,
       SearchConfig searchConfig,
@@ -161,6 +162,9 @@ public final class SearchIO implements AutoCloseable {
 
   private Query compileQuery(Map<String, Object> queryNode, int knnK)
       throws SearchException, IOException {
+    if (queryNode.containsKey("table_keyword")) {
+      return compileTableKeywordQuery(queryNode.get("table_keyword").toString());
+    }
     if (queryNode.containsKey("match")) {
       return compileMatchQuery(queryNode);
     }
@@ -170,7 +174,40 @@ public final class SearchIO implements AutoCloseable {
     if (queryNode.containsKey("hybrid")) {
       throw new SearchException("nested hybrid queries are not supported");
     }
-    throw new SearchException("supported queries: match, semantic, hybrid");
+    throw new SearchException("supported queries: table_keyword, match, semantic, hybrid");
+  }
+
+  private Query compileTableKeywordQuery(String queryText) throws SearchException, IOException {
+    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    boolean added = false;
+    for (String field : MetastoreTableMapper.KEYWORD_SEARCH_FIELDS) {
+      FieldSchema schema = mapping.fieldSchema(field);
+      if (!(schema instanceof FieldSchema.TextFieldSchema text)) {
+        continue;
+      }
+      if (text.filter()) {
+        builder.add(compileFilterKeywordQuery(field, queryText), BooleanClause.Occur.SHOULD);
+        added = true;
+        continue;
+      }
+      if (!text.search().lexical()) {
+        continue;
+      }
+      builder.add(compileMatchQuery(field, queryText), BooleanClause.Occur.SHOULD);
+      added = true;
+    }
+    if (!added) {
+      throw new SearchException("no lexically searchable table fields are configured");
+    }
+    return builder.build();
+  }
+
+  private Query compileFilterKeywordQuery(String field, String queryText) {
+    String normalized = queryText.trim().toLowerCase(Locale.ROOT);
+    if (normalized.isEmpty()) {
+      return new BooleanQuery.Builder().build();
+    }
+    return new TermQuery(new Term(field + TableDocument.FILTER_SUFFIX, normalized));
   }
 
   private Query compileMatchQuery(Map<String, Object> queryNode)
@@ -181,8 +218,11 @@ public final class SearchIO implements AutoCloseable {
       throw new SearchException("match query must contain exactly one field");
     }
     Map.Entry<String, Object> entry = matchBody.entrySet().iterator().next();
-    String field = entry.getKey();
-    String queryText = entry.getValue().toString();
+    return compileMatchQuery(entry.getKey(), entry.getValue().toString());
+  }
+
+  private Query compileMatchQuery(String field, String queryText)
+      throws SearchException, IOException {
 
     FieldSchema schema = mapping.fieldSchema(field);
     if (!(schema instanceof FieldSchema.TextFieldSchema text) || !text.search().lexical()) {

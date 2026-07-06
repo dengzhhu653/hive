@@ -110,12 +110,15 @@ public class TestHybridSearch {
     HybridSearch.ParsedHybridQuery parsed =
         new HybridSearch.ParsedHybridQuery(MetastoreTableMapper.FIELD_SEARCH_TEXT, "sales", null, null);
     SearchConfig searchConfig = new SearchConfig(new Configuration(false));
-    SearchIO.FusionRequest request =
+    SearchInternal.FusionRequest request =
         HybridSearch.toFusionRequest(parsed, 20, searchConfig);
 
     assertEquals(20, request.size());
     assertEquals(2, request.retrievers().size());
     assertEquals("match", request.retrievers().get(0).name());
+    assertEquals(
+        "sales",
+        request.retrievers().get(0).query().get("table_keyword"));
     assertEquals(searchConfig.getHybridMatchWeight(), request.retrievers().get(0).weight(), 0.001f);
     assertEquals(searchConfig.getHybridSemanticWeight(), request.retrievers().get(1).weight(), 0.001f);
   }

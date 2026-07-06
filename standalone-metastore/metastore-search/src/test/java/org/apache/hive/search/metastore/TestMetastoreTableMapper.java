@@ -29,14 +29,17 @@ import org.apache.hive.search.mapping.field.Field;
 import org.apache.hive.search.mapping.field.IdField;
 import org.apache.hive.search.mapping.field.TextField;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.IndexableField;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 @Category(MetastoreUnitTest.class)
@@ -77,10 +80,73 @@ public class TestMetastoreTableMapper {
     List<Document> luceneDocs = document.toDocuments();
     assertEquals(1, luceneDocs.size());
     Document luceneDoc = luceneDocs.get(0);
+    assertTrue(luceneDoc.getFields().size() >= 10);
     assertTrue(luceneDoc.get("_id").contains("hive.sales.orders"));
     assertEquals("sales", luceneDoc.get(MetastoreTableMapper.FIELD_DB));
     assertEquals("orders", luceneDoc.get(MetastoreTableMapper.FIELD_TABLE));
-    assertTrue(luceneDoc.get(MetastoreTableMapper.FIELD_SEARCH_TEXT).contains("daily orders"));
+    assertTrue(hasIndexedField(luceneDoc, MetastoreTableMapper.FIELD_TABLE + ".filter"));
+    String searchText = luceneDoc.get(MetastoreTableMapper.FIELD_SEARCH_TEXT);
+    assertTrue(searchText.contains("orders"));
+    assertTrue(searchText.contains("daily orders"));
+    assertTrue(searchText.contains("id order id"));
+    assertFalse(searchText.contains("amount"));
+    assertFalse(searchText.contains("hdfs://"));
+    assertFalse(searchText.contains("MANAGED_TABLE"));
+    assertFalse(searchText.contains("alice"));
+    assertEquals("id bigint order id; amount double", luceneDoc.get(MetastoreTableMapper.FIELD_COLUMNS));
+  }
+
+  @Test
+  public void searchTextIncludesOnlyCommentedColumns() throws Exception {
+    Configuration conf = new Configuration(false);
+    IndexMapping mapping = MetastoreSchemas.defaultHiveTablesMapping("hive_tables", "bge-small", conf);
+
+    Table table = new Table();
+    table.setCatName("hive");
+    table.setDbName("sales");
+    table.setTableName("orders");
+    table.setSd(new StorageDescriptor());
+    table.getSd().setCols(List.of(
+        new FieldSchema("id", "bigint", "order id"),
+        new FieldSchema("amount", "double", null),
+        new FieldSchema("status", "string", "fulfillment status")));
+
+    TableDocument document = MetastoreTableMapper.fromTable(table, mapping);
+    String searchText = fieldValue(document, MetastoreTableMapper.FIELD_SEARCH_TEXT);
+    String storedColumns = fieldValue(document, MetastoreTableMapper.FIELD_COLUMNS);
+
+    assertTrue(searchText.contains("id order id"));
+    assertTrue(searchText.contains("status fulfillment status"));
+    assertFalse(searchText.contains("amount"));
+    assertTrue(storedColumns.contains("amount double"));
+  }
+
+  @Test
+  public void searchTextCapsWideTables() throws Exception {
+    Configuration conf = new Configuration(false);
+    IndexMapping mapping = MetastoreSchemas.defaultHiveTablesMapping("hive_tables", "bge-small", conf);
+
+    Table table = new Table();
+    table.setCatName("hive");
+    table.setDbName("wide");
+    table.setTableName("events");
+    table.setSd(new StorageDescriptor());
+    List<FieldSchema> cols = new ArrayList<>();
+    for (int i = 0; i < MetastoreTableMapper.MAX_SEARCH_COLUMNS + 5; i++) {
+      cols.add(new FieldSchema("col" + i, "string", "comment " + i));
+    }
+    table.getSd().setCols(cols);
+
+    TableDocument document = MetastoreTableMapper.fromTable(table, mapping);
+    String searchText = fieldValue(document, MetastoreTableMapper.FIELD_SEARCH_TEXT);
+    String storedColumns = fieldValue(document, MetastoreTableMapper.FIELD_COLUMNS);
+
+    assertTrue(searchText.contains("col0 comment 0"));
+    assertTrue(searchText.contains("col49 comment 49"));
+    assertFalse(searchText.contains("col50 comment 50"));
+    assertTrue(searchText.contains("(+5 more)"));
+    assertTrue(storedColumns.contains("col54 string comment 54"));
+    assertFalse(storedColumns.contains("(+5 more)"));
   }
 
   @Test
@@ -121,5 +187,23 @@ public class TestMetastoreTableMapper {
       }
     }
     return new TableDocument(document.idField(), fields, mapping);
+  }
+
+  private static boolean hasIndexedField(Document document, String fieldName) {
+    for (IndexableField field : document.getFields()) {
+      if (fieldName.equals(field.name())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static String fieldValue(TableDocument document, String fieldName) {
+    for (Field field : document.fields()) {
+      if (field instanceof TextField textField && fieldName.equals(textField.name())) {
+        return textField.value();
+      }
+    }
+    throw new AssertionError("missing field: " + fieldName);
   }
 }

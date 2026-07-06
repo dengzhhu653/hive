@@ -115,13 +115,17 @@ public final class InMemorySearchFixture implements AutoCloseable {
   }
 
   public List<Map<String, Object>> searchMatch(String text, int limit) throws Exception {
+    return search(Map.of("table_keyword", text), limit);
+  }
+
+  public List<Map<String, Object>> search(Map<String, Object> query, int limit) throws Exception {
     if (searcherManager == null || bayesianParameters == null) {
       throw new IllegalStateException("call commit() before searching");
     }
-    try (SearchIO searchIO = new SearchIO(
+    try (SearchInternal searchIO = new SearchInternal(
         searcherManager, indexManager, modelRegistry, searchConfig, bayesianParameters)) {
       SearchReqResp.Response response = searchIO.search(SearchReqResp.Request.validated(
-          Map.of("match", Map.of(MetastoreTableMapper.FIELD_SEARCH_TEXT, text)),
+          query,
           List.of(MetastoreTableMapper.FIELD_TABLE, MetastoreTableMapper.FIELD_COMMENT),
           limit,
           null,
@@ -143,6 +147,14 @@ public final class InMemorySearchFixture implements AutoCloseable {
     params.put("comment", comment);
     table.setParameters(params);
     return table;
+  }
+
+  public IndexManager indexManager() {
+    return indexManager;
+  }
+
+  public SearcherManager searcherManager() {
+    return searcherManager;
   }
 
   @Override

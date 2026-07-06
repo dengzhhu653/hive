@@ -25,6 +25,7 @@ import org.apache.hive.search.config.SearchConfig;
 import org.apache.hive.search.exception.SearchException;
 import org.apache.hive.search.mapping.FieldSchema;
 import org.apache.hive.search.mapping.IndexMapping;
+import org.apache.hive.search.metastore.MetastoreTableMapper;
 
 /** Builds RRF queries that fuse lexical and semantic retrieval on hybrid fields. */
 public final class HybridSearch {
@@ -79,17 +80,24 @@ public final class HybridSearch {
         "hybrid query must be a string, {field:, query:}, {query:}, or {<hybrid_field>: text}");
   }
 
-  public static SearchIO.FusionRequest toFusionRequest(
+  public static SearchInternal.FusionRequest toFusionRequest(
       ParsedHybridQuery hybrid, int defaultSize, SearchConfig searchConfig) {
     float matchWeight = hybrid.matchWeight() != null ? hybrid.matchWeight() : searchConfig.getHybridMatchWeight();
     float semanticWeight = hybrid.semanticWeight() != null ? hybrid.semanticWeight() : searchConfig.getHybridSemanticWeight();
-    List<SearchIO.RetrieverSpec> retrievers =
+    Map<String, Object> lexicalQuery = lexicalQueryForHybrid(hybrid);
+    List<SearchInternal.RetrieverSpec> retrievers =
         List.of(
-            new SearchIO.RetrieverSpec(
-                Map.of("match", Map.of(hybrid.field(), hybrid.queryText())), matchWeight, "match"),
-            new SearchIO.RetrieverSpec(
+            new SearchInternal.RetrieverSpec(lexicalQuery, matchWeight, "match"),
+            new SearchInternal.RetrieverSpec(
                 Map.of("semantic", Map.of(hybrid.field(), hybrid.queryText())), semanticWeight, "semantic"));
-    return new SearchIO.FusionRequest(retrievers, defaultSize);
+    return new SearchInternal.FusionRequest(retrievers, defaultSize);
+  }
+
+  private static Map<String, Object> lexicalQueryForHybrid(ParsedHybridQuery hybrid) {
+    if (MetastoreTableMapper.FIELD_SEARCH_TEXT.equals(hybrid.field())) {
+      return Map.of("table_keyword", hybrid.queryText());
+    }
+    return Map.of("match", Map.of(hybrid.field(), hybrid.queryText()));
   }
 
   private record HybridWeights(Float match, Float semantic) {}

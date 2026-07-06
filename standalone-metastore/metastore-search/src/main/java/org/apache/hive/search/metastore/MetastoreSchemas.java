@@ -33,7 +33,7 @@ public final class MetastoreSchemas {
       String semanticModel, Configuration conf) {
     Map<String, FieldSchema> fields = new LinkedHashMap<>();
     fields.put(MetastoreTableMapper.FIELD_DB, filterText(MetastoreTableMapper.FIELD_DB));
-    fields.put(MetastoreTableMapper.FIELD_TABLE, lexicalText(MetastoreTableMapper.FIELD_TABLE));
+    fields.put(MetastoreTableMapper.FIELD_TABLE, tableNameText(MetastoreTableMapper.FIELD_TABLE));
     fields.put(MetastoreTableMapper.FIELD_OWNER, filterText(MetastoreTableMapper.FIELD_OWNER));
     fields.put(MetastoreTableMapper.FIELD_TABLE_TYPE, filterText(MetastoreTableMapper.FIELD_TABLE_TYPE));
     fields.put(MetastoreTableMapper.FIELD_LOCATION, storedText(MetastoreTableMapper.FIELD_LOCATION));
@@ -56,6 +56,11 @@ public final class MetastoreSchemas {
   private static FieldSchema.TextFieldSchema lexicalText(String name) {
     return new FieldSchema.TextFieldSchema(
         name, new SearchParams(true, null, SearchParams.VectorDistance.COSINE), true, false);
+  }
+
+  private static FieldSchema.TextFieldSchema tableNameText(String name) {
+    return new FieldSchema.TextFieldSchema(
+        name, new SearchParams(true, null, SearchParams.VectorDistance.COSINE), true, true);
   }
 
   private static FieldSchema.TextFieldSchema hybridText(String name, String semanticModel) {
