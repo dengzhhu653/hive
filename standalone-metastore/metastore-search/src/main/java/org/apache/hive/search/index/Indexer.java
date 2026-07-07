@@ -92,7 +92,7 @@ public final class Indexer implements AutoCloseable {
   }
 
   /** Writes already-embedded documents to Lucene. */
-  public void writeDocuments(List<TableDocument> docs) throws IOException, IndexException {
+  private void writeDocuments(List<TableDocument> docs) throws IOException, IndexException {
     List<Document> luceneDocs = new ArrayList<>();
     List<String> ids = new ArrayList<>();
     for (TableDocument doc : docs) {
@@ -200,7 +200,7 @@ public final class Indexer implements AutoCloseable {
         modelRef, textDocs.size(), uniqueTexts, System.currentTimeMillis() - start);
   }
 
-  private static void applyEmbedding(ListMultimap<String, TextField> valueToTxt,
+  private void applyEmbedding(ListMultimap<String, TextField> valueToTxt,
       ListMultimap<TextField, TableDocument> textDocs, String text, float[] embedding) {
     for (TextField tf : valueToTxt.get(text)) {
       for (TableDocument document : textDocs.get(tf)) {

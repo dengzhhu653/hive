@@ -355,7 +355,7 @@ public final class MetastoreIndexer implements AutoCloseable {
         }
         commitThread.interrupt();
       } finally {
-        if (lastCommittedEventId != eventId) {
+        if (eventId > lastCommittedEventId) {
           indexer.flush(eventId, false, true);
           lastCommittedEventId = eventId;
         }
