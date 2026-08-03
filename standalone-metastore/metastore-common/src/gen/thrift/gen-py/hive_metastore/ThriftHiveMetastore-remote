@@ -311,6 +311,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('  void drop_package(DropPackageRequest request)')
     print('   get_all_write_event_info(GetAllWriteEventInfoRequest request)')
     print('  ReplayedTxnsForPolicyResult get_replayed_txns_for_policy(string policyName)')
+    print('  TableSearchResponse search_tables_req(SearchTablesRequest req)')
     print('  string getName()')
     print('  string getVersion()')
     print('  fb_status getStatus()')
@@ -2124,6 +2125,12 @@ elif cmd == 'get_replayed_txns_for_policy':
         print('get_replayed_txns_for_policy requires 1 args')
         sys.exit(1)
     pp.pprint(client.get_replayed_txns_for_policy(args[0],))
+
+elif cmd == 'search_tables_req':
+    if len(args) != 1:
+        print('search_tables_req requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.search_tables_req(eval(args[0]),))
 
 elif cmd == 'getName':
     if len(args) != 0:

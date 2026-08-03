@@ -364,7 +364,7 @@ public abstract class AbstractRequestHandler<T extends TBase, A extends Abstract
     AbstractRequestHandler create(IHMSHandler base, TBase req) throws Exception;
   }
 
-  public interface Result {
+  public interface Result<T> {
     /**
      * An indicator to tell if the handler is successful or not.
      * @return true if the handler is successful, false otherwise
@@ -378,6 +378,17 @@ public abstract class AbstractRequestHandler<T extends TBase, A extends Abstract
      */
     default Result shrinkIfNecessary() {
       return this;
+    }
+
+    /**
+     * Transform this result into the Thrift response type expected by the caller.
+     * Handlers whose {@link #execute()} result is not the Thrift API response
+     * should override this method to return the appropriate Thrift object.
+     *
+     * @return the Thrift response
+     */
+    default T transform() {
+      throw new UnsupportedOperationException("transform is not supported for this result type");
     }
   }
 

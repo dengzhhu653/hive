@@ -1206,14 +1206,14 @@ package org.apache.hadoop.hive.metastore.api;
           case 3: // PRIMARY_KEYS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1376 = iprot.readListBegin();
-                struct.primaryKeys = new java.util.ArrayList<SQLPrimaryKey>(_list1376.size);
-                @org.apache.thrift.annotation.Nullable SQLPrimaryKey _elem1377;
-                for (int _i1378 = 0; _i1378 < _list1376.size; ++_i1378)
+                org.apache.thrift.protocol.TList _list1394 = iprot.readListBegin();
+                struct.primaryKeys = new java.util.ArrayList<SQLPrimaryKey>(_list1394.size);
+                @org.apache.thrift.annotation.Nullable SQLPrimaryKey _elem1395;
+                for (int _i1396 = 0; _i1396 < _list1394.size; ++_i1396)
                 {
-                  _elem1377 = new SQLPrimaryKey();
-                  _elem1377.read(iprot);
-                  struct.primaryKeys.add(_elem1377);
+                  _elem1395 = new SQLPrimaryKey();
+                  _elem1395.read(iprot);
+                  struct.primaryKeys.add(_elem1395);
                 }
                 iprot.readListEnd();
               }
@@ -1225,14 +1225,14 @@ package org.apache.hadoop.hive.metastore.api;
           case 4: // FOREIGN_KEYS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1379 = iprot.readListBegin();
-                struct.foreignKeys = new java.util.ArrayList<SQLForeignKey>(_list1379.size);
-                @org.apache.thrift.annotation.Nullable SQLForeignKey _elem1380;
-                for (int _i1381 = 0; _i1381 < _list1379.size; ++_i1381)
+                org.apache.thrift.protocol.TList _list1397 = iprot.readListBegin();
+                struct.foreignKeys = new java.util.ArrayList<SQLForeignKey>(_list1397.size);
+                @org.apache.thrift.annotation.Nullable SQLForeignKey _elem1398;
+                for (int _i1399 = 0; _i1399 < _list1397.size; ++_i1399)
                 {
-                  _elem1380 = new SQLForeignKey();
-                  _elem1380.read(iprot);
-                  struct.foreignKeys.add(_elem1380);
+                  _elem1398 = new SQLForeignKey();
+                  _elem1398.read(iprot);
+                  struct.foreignKeys.add(_elem1398);
                 }
                 iprot.readListEnd();
               }
@@ -1244,14 +1244,14 @@ package org.apache.hadoop.hive.metastore.api;
           case 5: // UNIQUE_CONSTRAINTS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1382 = iprot.readListBegin();
-                struct.uniqueConstraints = new java.util.ArrayList<SQLUniqueConstraint>(_list1382.size);
-                @org.apache.thrift.annotation.Nullable SQLUniqueConstraint _elem1383;
-                for (int _i1384 = 0; _i1384 < _list1382.size; ++_i1384)
+                org.apache.thrift.protocol.TList _list1400 = iprot.readListBegin();
+                struct.uniqueConstraints = new java.util.ArrayList<SQLUniqueConstraint>(_list1400.size);
+                @org.apache.thrift.annotation.Nullable SQLUniqueConstraint _elem1401;
+                for (int _i1402 = 0; _i1402 < _list1400.size; ++_i1402)
                 {
-                  _elem1383 = new SQLUniqueConstraint();
-                  _elem1383.read(iprot);
-                  struct.uniqueConstraints.add(_elem1383);
+                  _elem1401 = new SQLUniqueConstraint();
+                  _elem1401.read(iprot);
+                  struct.uniqueConstraints.add(_elem1401);
                 }
                 iprot.readListEnd();
               }
@@ -1263,14 +1263,14 @@ package org.apache.hadoop.hive.metastore.api;
           case 6: // NOT_NULL_CONSTRAINTS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1385 = iprot.readListBegin();
-                struct.notNullConstraints = new java.util.ArrayList<SQLNotNullConstraint>(_list1385.size);
-                @org.apache.thrift.annotation.Nullable SQLNotNullConstraint _elem1386;
-                for (int _i1387 = 0; _i1387 < _list1385.size; ++_i1387)
+                org.apache.thrift.protocol.TList _list1403 = iprot.readListBegin();
+                struct.notNullConstraints = new java.util.ArrayList<SQLNotNullConstraint>(_list1403.size);
+                @org.apache.thrift.annotation.Nullable SQLNotNullConstraint _elem1404;
+                for (int _i1405 = 0; _i1405 < _list1403.size; ++_i1405)
                 {
-                  _elem1386 = new SQLNotNullConstraint();
-                  _elem1386.read(iprot);
-                  struct.notNullConstraints.add(_elem1386);
+                  _elem1404 = new SQLNotNullConstraint();
+                  _elem1404.read(iprot);
+                  struct.notNullConstraints.add(_elem1404);
                 }
                 iprot.readListEnd();
               }
@@ -1282,14 +1282,14 @@ package org.apache.hadoop.hive.metastore.api;
           case 7: // DEFAULT_CONSTRAINTS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1388 = iprot.readListBegin();
-                struct.defaultConstraints = new java.util.ArrayList<SQLDefaultConstraint>(_list1388.size);
-                @org.apache.thrift.annotation.Nullable SQLDefaultConstraint _elem1389;
-                for (int _i1390 = 0; _i1390 < _list1388.size; ++_i1390)
+                org.apache.thrift.protocol.TList _list1406 = iprot.readListBegin();
+                struct.defaultConstraints = new java.util.ArrayList<SQLDefaultConstraint>(_list1406.size);
+                @org.apache.thrift.annotation.Nullable SQLDefaultConstraint _elem1407;
+                for (int _i1408 = 0; _i1408 < _list1406.size; ++_i1408)
                 {
-                  _elem1389 = new SQLDefaultConstraint();
-                  _elem1389.read(iprot);
-                  struct.defaultConstraints.add(_elem1389);
+                  _elem1407 = new SQLDefaultConstraint();
+                  _elem1407.read(iprot);
+                  struct.defaultConstraints.add(_elem1407);
                 }
                 iprot.readListEnd();
               }
@@ -1301,14 +1301,14 @@ package org.apache.hadoop.hive.metastore.api;
           case 8: // CHECK_CONSTRAINTS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1391 = iprot.readListBegin();
-                struct.checkConstraints = new java.util.ArrayList<SQLCheckConstraint>(_list1391.size);
-                @org.apache.thrift.annotation.Nullable SQLCheckConstraint _elem1392;
-                for (int _i1393 = 0; _i1393 < _list1391.size; ++_i1393)
+                org.apache.thrift.protocol.TList _list1409 = iprot.readListBegin();
+                struct.checkConstraints = new java.util.ArrayList<SQLCheckConstraint>(_list1409.size);
+                @org.apache.thrift.annotation.Nullable SQLCheckConstraint _elem1410;
+                for (int _i1411 = 0; _i1411 < _list1409.size; ++_i1411)
                 {
-                  _elem1392 = new SQLCheckConstraint();
-                  _elem1392.read(iprot);
-                  struct.checkConstraints.add(_elem1392);
+                  _elem1410 = new SQLCheckConstraint();
+                  _elem1410.read(iprot);
+                  struct.checkConstraints.add(_elem1410);
                 }
                 iprot.readListEnd();
               }
@@ -1320,13 +1320,13 @@ package org.apache.hadoop.hive.metastore.api;
           case 9: // PROCESSOR_CAPABILITIES
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list1394 = iprot.readListBegin();
-                struct.processorCapabilities = new java.util.ArrayList<java.lang.String>(_list1394.size);
-                @org.apache.thrift.annotation.Nullable java.lang.String _elem1395;
-                for (int _i1396 = 0; _i1396 < _list1394.size; ++_i1396)
+                org.apache.thrift.protocol.TList _list1412 = iprot.readListBegin();
+                struct.processorCapabilities = new java.util.ArrayList<java.lang.String>(_list1412.size);
+                @org.apache.thrift.annotation.Nullable java.lang.String _elem1413;
+                for (int _i1414 = 0; _i1414 < _list1412.size; ++_i1414)
                 {
-                  _elem1395 = iprot.readString();
-                  struct.processorCapabilities.add(_elem1395);
+                  _elem1413 = iprot.readString();
+                  struct.processorCapabilities.add(_elem1413);
                 }
                 iprot.readListEnd();
               }
@@ -1373,9 +1373,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(PRIMARY_KEYS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.primaryKeys.size()));
-            for (SQLPrimaryKey _iter1397 : struct.primaryKeys)
+            for (SQLPrimaryKey _iter1415 : struct.primaryKeys)
             {
-              _iter1397.write(oprot);
+              _iter1415.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -1387,9 +1387,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(FOREIGN_KEYS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.foreignKeys.size()));
-            for (SQLForeignKey _iter1398 : struct.foreignKeys)
+            for (SQLForeignKey _iter1416 : struct.foreignKeys)
             {
-              _iter1398.write(oprot);
+              _iter1416.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -1401,9 +1401,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(UNIQUE_CONSTRAINTS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.uniqueConstraints.size()));
-            for (SQLUniqueConstraint _iter1399 : struct.uniqueConstraints)
+            for (SQLUniqueConstraint _iter1417 : struct.uniqueConstraints)
             {
-              _iter1399.write(oprot);
+              _iter1417.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -1415,9 +1415,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(NOT_NULL_CONSTRAINTS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.notNullConstraints.size()));
-            for (SQLNotNullConstraint _iter1400 : struct.notNullConstraints)
+            for (SQLNotNullConstraint _iter1418 : struct.notNullConstraints)
             {
-              _iter1400.write(oprot);
+              _iter1418.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -1429,9 +1429,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(DEFAULT_CONSTRAINTS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.defaultConstraints.size()));
-            for (SQLDefaultConstraint _iter1401 : struct.defaultConstraints)
+            for (SQLDefaultConstraint _iter1419 : struct.defaultConstraints)
             {
-              _iter1401.write(oprot);
+              _iter1419.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -1443,9 +1443,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(CHECK_CONSTRAINTS_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.checkConstraints.size()));
-            for (SQLCheckConstraint _iter1402 : struct.checkConstraints)
+            for (SQLCheckConstraint _iter1420 : struct.checkConstraints)
             {
-              _iter1402.write(oprot);
+              _iter1420.write(oprot);
             }
             oprot.writeListEnd();
           }
@@ -1457,9 +1457,9 @@ package org.apache.hadoop.hive.metastore.api;
           oprot.writeFieldBegin(PROCESSOR_CAPABILITIES_FIELD_DESC);
           {
             oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, struct.processorCapabilities.size()));
-            for (java.lang.String _iter1403 : struct.processorCapabilities)
+            for (java.lang.String _iter1421 : struct.processorCapabilities)
             {
-              oprot.writeString(_iter1403);
+              oprot.writeString(_iter1421);
             }
             oprot.writeListEnd();
           }
@@ -1526,63 +1526,63 @@ package org.apache.hadoop.hive.metastore.api;
       if (struct.isSetPrimaryKeys()) {
         {
           oprot.writeI32(struct.primaryKeys.size());
-          for (SQLPrimaryKey _iter1404 : struct.primaryKeys)
+          for (SQLPrimaryKey _iter1422 : struct.primaryKeys)
           {
-            _iter1404.write(oprot);
+            _iter1422.write(oprot);
           }
         }
       }
       if (struct.isSetForeignKeys()) {
         {
           oprot.writeI32(struct.foreignKeys.size());
-          for (SQLForeignKey _iter1405 : struct.foreignKeys)
+          for (SQLForeignKey _iter1423 : struct.foreignKeys)
           {
-            _iter1405.write(oprot);
+            _iter1423.write(oprot);
           }
         }
       }
       if (struct.isSetUniqueConstraints()) {
         {
           oprot.writeI32(struct.uniqueConstraints.size());
-          for (SQLUniqueConstraint _iter1406 : struct.uniqueConstraints)
+          for (SQLUniqueConstraint _iter1424 : struct.uniqueConstraints)
           {
-            _iter1406.write(oprot);
+            _iter1424.write(oprot);
           }
         }
       }
       if (struct.isSetNotNullConstraints()) {
         {
           oprot.writeI32(struct.notNullConstraints.size());
-          for (SQLNotNullConstraint _iter1407 : struct.notNullConstraints)
+          for (SQLNotNullConstraint _iter1425 : struct.notNullConstraints)
           {
-            _iter1407.write(oprot);
+            _iter1425.write(oprot);
           }
         }
       }
       if (struct.isSetDefaultConstraints()) {
         {
           oprot.writeI32(struct.defaultConstraints.size());
-          for (SQLDefaultConstraint _iter1408 : struct.defaultConstraints)
+          for (SQLDefaultConstraint _iter1426 : struct.defaultConstraints)
           {
-            _iter1408.write(oprot);
+            _iter1426.write(oprot);
           }
         }
       }
       if (struct.isSetCheckConstraints()) {
         {
           oprot.writeI32(struct.checkConstraints.size());
-          for (SQLCheckConstraint _iter1409 : struct.checkConstraints)
+          for (SQLCheckConstraint _iter1427 : struct.checkConstraints)
           {
-            _iter1409.write(oprot);
+            _iter1427.write(oprot);
           }
         }
       }
       if (struct.isSetProcessorCapabilities()) {
         {
           oprot.writeI32(struct.processorCapabilities.size());
-          for (java.lang.String _iter1410 : struct.processorCapabilities)
+          for (java.lang.String _iter1428 : struct.processorCapabilities)
           {
-            oprot.writeString(_iter1410);
+            oprot.writeString(_iter1428);
           }
         }
       }
@@ -1605,97 +1605,97 @@ package org.apache.hadoop.hive.metastore.api;
       }
       if (incoming.get(1)) {
         {
-          org.apache.thrift.protocol.TList _list1411 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
-          struct.primaryKeys = new java.util.ArrayList<SQLPrimaryKey>(_list1411.size);
-          @org.apache.thrift.annotation.Nullable SQLPrimaryKey _elem1412;
-          for (int _i1413 = 0; _i1413 < _list1411.size; ++_i1413)
+          org.apache.thrift.protocol.TList _list1429 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
+          struct.primaryKeys = new java.util.ArrayList<SQLPrimaryKey>(_list1429.size);
+          @org.apache.thrift.annotation.Nullable SQLPrimaryKey _elem1430;
+          for (int _i1431 = 0; _i1431 < _list1429.size; ++_i1431)
           {
-            _elem1412 = new SQLPrimaryKey();
-            _elem1412.read(iprot);
-            struct.primaryKeys.add(_elem1412);
+            _elem1430 = new SQLPrimaryKey();
+            _elem1430.read(iprot);
+            struct.primaryKeys.add(_elem1430);
           }
         }
         struct.setPrimaryKeysIsSet(true);
       }
       if (incoming.get(2)) {
         {
-          org.apache.thrift.protocol.TList _list1414 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
-          struct.foreignKeys = new java.util.ArrayList<SQLForeignKey>(_list1414.size);
-          @org.apache.thrift.annotation.Nullable SQLForeignKey _elem1415;
-          for (int _i1416 = 0; _i1416 < _list1414.size; ++_i1416)
+          org.apache.thrift.protocol.TList _list1432 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
+          struct.foreignKeys = new java.util.ArrayList<SQLForeignKey>(_list1432.size);
+          @org.apache.thrift.annotation.Nullable SQLForeignKey _elem1433;
+          for (int _i1434 = 0; _i1434 < _list1432.size; ++_i1434)
           {
-            _elem1415 = new SQLForeignKey();
-            _elem1415.read(iprot);
-            struct.foreignKeys.add(_elem1415);
+            _elem1433 = new SQLForeignKey();
+            _elem1433.read(iprot);
+            struct.foreignKeys.add(_elem1433);
           }
         }
         struct.setForeignKeysIsSet(true);
       }
       if (incoming.get(3)) {
         {
-          org.apache.thrift.protocol.TList _list1417 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
-          struct.uniqueConstraints = new java.util.ArrayList<SQLUniqueConstraint>(_list1417.size);
-          @org.apache.thrift.annotation.Nullable SQLUniqueConstraint _elem1418;
-          for (int _i1419 = 0; _i1419 < _list1417.size; ++_i1419)
+          org.apache.thrift.protocol.TList _list1435 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
+          struct.uniqueConstraints = new java.util.ArrayList<SQLUniqueConstraint>(_list1435.size);
+          @org.apache.thrift.annotation.Nullable SQLUniqueConstraint _elem1436;
+          for (int _i1437 = 0; _i1437 < _list1435.size; ++_i1437)
           {
-            _elem1418 = new SQLUniqueConstraint();
-            _elem1418.read(iprot);
-            struct.uniqueConstraints.add(_elem1418);
+            _elem1436 = new SQLUniqueConstraint();
+            _elem1436.read(iprot);
+            struct.uniqueConstraints.add(_elem1436);
           }
         }
         struct.setUniqueConstraintsIsSet(true);
       }
       if (incoming.get(4)) {
         {
-          org.apache.thrift.protocol.TList _list1420 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
-          struct.notNullConstraints = new java.util.ArrayList<SQLNotNullConstraint>(_list1420.size);
-          @org.apache.thrift.annotation.Nullable SQLNotNullConstraint _elem1421;
-          for (int _i1422 = 0; _i1422 < _list1420.size; ++_i1422)
+          org.apache.thrift.protocol.TList _list1438 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
+          struct.notNullConstraints = new java.util.ArrayList<SQLNotNullConstraint>(_list1438.size);
+          @org.apache.thrift.annotation.Nullable SQLNotNullConstraint _elem1439;
+          for (int _i1440 = 0; _i1440 < _list1438.size; ++_i1440)
           {
-            _elem1421 = new SQLNotNullConstraint();
-            _elem1421.read(iprot);
-            struct.notNullConstraints.add(_elem1421);
+            _elem1439 = new SQLNotNullConstraint();
+            _elem1439.read(iprot);
+            struct.notNullConstraints.add(_elem1439);
           }
         }
         struct.setNotNullConstraintsIsSet(true);
       }
       if (incoming.get(5)) {
         {
-          org.apache.thrift.protocol.TList _list1423 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
-          struct.defaultConstraints = new java.util.ArrayList<SQLDefaultConstraint>(_list1423.size);
-          @org.apache.thrift.annotation.Nullable SQLDefaultConstraint _elem1424;
-          for (int _i1425 = 0; _i1425 < _list1423.size; ++_i1425)
+          org.apache.thrift.protocol.TList _list1441 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
+          struct.defaultConstraints = new java.util.ArrayList<SQLDefaultConstraint>(_list1441.size);
+          @org.apache.thrift.annotation.Nullable SQLDefaultConstraint _elem1442;
+          for (int _i1443 = 0; _i1443 < _list1441.size; ++_i1443)
           {
-            _elem1424 = new SQLDefaultConstraint();
-            _elem1424.read(iprot);
-            struct.defaultConstraints.add(_elem1424);
+            _elem1442 = new SQLDefaultConstraint();
+            _elem1442.read(iprot);
+            struct.defaultConstraints.add(_elem1442);
           }
         }
         struct.setDefaultConstraintsIsSet(true);
       }
       if (incoming.get(6)) {
         {
-          org.apache.thrift.protocol.TList _list1426 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
-          struct.checkConstraints = new java.util.ArrayList<SQLCheckConstraint>(_list1426.size);
-          @org.apache.thrift.annotation.Nullable SQLCheckConstraint _elem1427;
-          for (int _i1428 = 0; _i1428 < _list1426.size; ++_i1428)
+          org.apache.thrift.protocol.TList _list1444 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRUCT);
+          struct.checkConstraints = new java.util.ArrayList<SQLCheckConstraint>(_list1444.size);
+          @org.apache.thrift.annotation.Nullable SQLCheckConstraint _elem1445;
+          for (int _i1446 = 0; _i1446 < _list1444.size; ++_i1446)
           {
-            _elem1427 = new SQLCheckConstraint();
-            _elem1427.read(iprot);
-            struct.checkConstraints.add(_elem1427);
+            _elem1445 = new SQLCheckConstraint();
+            _elem1445.read(iprot);
+            struct.checkConstraints.add(_elem1445);
           }
         }
         struct.setCheckConstraintsIsSet(true);
       }
       if (incoming.get(7)) {
         {
-          org.apache.thrift.protocol.TList _list1429 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRING);
-          struct.processorCapabilities = new java.util.ArrayList<java.lang.String>(_list1429.size);
-          @org.apache.thrift.annotation.Nullable java.lang.String _elem1430;
-          for (int _i1431 = 0; _i1431 < _list1429.size; ++_i1431)
+          org.apache.thrift.protocol.TList _list1447 = iprot.readListBegin(org.apache.thrift.protocol.TType.STRING);
+          struct.processorCapabilities = new java.util.ArrayList<java.lang.String>(_list1447.size);
+          @org.apache.thrift.annotation.Nullable java.lang.String _elem1448;
+          for (int _i1449 = 0; _i1449 < _list1447.size; ++_i1449)
           {
-            _elem1430 = iprot.readString();
-            struct.processorCapabilities.add(_elem1430);
+            _elem1448 = iprot.readString();
+            struct.processorCapabilities.add(_elem1448);
           }
         }
         struct.setProcessorCapabilitiesIsSet(true);

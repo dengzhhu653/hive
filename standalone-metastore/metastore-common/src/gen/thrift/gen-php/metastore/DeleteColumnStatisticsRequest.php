@@ -165,13 +165,13 @@ class DeleteColumnStatisticsRequest
                 case 4:
                     if ($ftype == TType::LST) {
                         $this->part_names = array();
-                        $_size1427 = 0;
-                        $_etype1430 = 0;
-                        $xfer += $input->readListBegin($_etype1430, $_size1427);
-                        for ($_i1431 = 0; $_i1431 < $_size1427; ++$_i1431) {
-                            $elem1432 = null;
-                            $xfer += $input->readString($elem1432);
-                            $this->part_names []= $elem1432;
+                        $_size1443 = 0;
+                        $_etype1446 = 0;
+                        $xfer += $input->readListBegin($_etype1446, $_size1443);
+                        for ($_i1447 = 0; $_i1447 < $_size1443; ++$_i1447) {
+                            $elem1448 = null;
+                            $xfer += $input->readString($elem1448);
+                            $this->part_names []= $elem1448;
                         }
                         $xfer += $input->readListEnd();
                     } else {
@@ -181,13 +181,13 @@ class DeleteColumnStatisticsRequest
                 case 5:
                     if ($ftype == TType::LST) {
                         $this->col_names = array();
-                        $_size1433 = 0;
-                        $_etype1436 = 0;
-                        $xfer += $input->readListBegin($_etype1436, $_size1433);
-                        for ($_i1437 = 0; $_i1437 < $_size1433; ++$_i1437) {
-                            $elem1438 = null;
-                            $xfer += $input->readString($elem1438);
-                            $this->col_names []= $elem1438;
+                        $_size1449 = 0;
+                        $_etype1452 = 0;
+                        $xfer += $input->readListBegin($_etype1452, $_size1449);
+                        for ($_i1453 = 0; $_i1453 < $_size1449; ++$_i1453) {
+                            $elem1454 = null;
+                            $xfer += $input->readString($elem1454);
+                            $this->col_names []= $elem1454;
                         }
                         $xfer += $input->readListEnd();
                     } else {
@@ -243,8 +243,8 @@ class DeleteColumnStatisticsRequest
             }
             $xfer += $output->writeFieldBegin('part_names', TType::LST, 4);
             $output->writeListBegin(TType::STRING, count($this->part_names));
-            foreach ($this->part_names as $iter1439) {
-                $xfer += $output->writeString($iter1439);
+            foreach ($this->part_names as $iter1455) {
+                $xfer += $output->writeString($iter1455);
             }
             $output->writeListEnd();
             $xfer += $output->writeFieldEnd();
@@ -255,8 +255,8 @@ class DeleteColumnStatisticsRequest
             }
             $xfer += $output->writeFieldBegin('col_names', TType::LST, 5);
             $output->writeListBegin(TType::STRING, count($this->col_names));
-            foreach ($this->col_names as $iter1440) {
-                $xfer += $output->writeString($iter1440);
+            foreach ($this->col_names as $iter1456) {
+                $xfer += $output->writeString($iter1456);
             }
             $output->writeListEnd();
             $xfer += $output->writeFieldEnd();

@@ -367,6 +367,20 @@ std::ostream& operator<<(std::ostream& out, const ClientCapability::type& val);
 
 std::string to_string(const ClientCapability::type& val);
 
+struct SearchMode {
+  enum type {
+    MATCH = 1,
+    SEMANTIC = 2,
+    HYBRID = 3
+  };
+};
+
+extern const std::map<int, const char*> _SearchMode_VALUES_TO_NAMES;
+
+std::ostream& operator<<(std::ostream& out, const SearchMode::type& val);
+
+std::string to_string(const SearchMode::type& val);
+
 struct WMResourcePlanStatus {
   enum type {
     ACTIVE = 1,
@@ -867,6 +881,12 @@ class CmRecycleResponse;
 
 class TableMeta;
 
+class SearchTablesRequest;
+
+class TableSearchHit;
+
+class TableSearchResponse;
+
 class Materialization;
 
 class WMResourcePlan;
@@ -1110,6 +1130,10 @@ class TxnOpenException;
 class NoSuchLockException;
 
 class CompactionAbortedException;
+
+class IndexNotReadyException;
+
+class IndexNotHealthyException;
 
 class NoSuchCompactionException;
 
@@ -15223,6 +15247,200 @@ void swap(TableMeta &a, TableMeta &b);
 
 std::ostream& operator<<(std::ostream& out, const TableMeta& obj);
 
+typedef struct _SearchTablesRequest__isset {
+  _SearchTablesRequest__isset() : catalogName(false), databaseName(false), limit(false) {}
+  bool catalogName :1;
+  bool databaseName :1;
+  bool limit :1;
+} _SearchTablesRequest__isset;
+
+class SearchTablesRequest : public virtual ::apache::thrift::TBase {
+ public:
+
+  SearchTablesRequest(const SearchTablesRequest&);
+  SearchTablesRequest& operator=(const SearchTablesRequest&);
+  SearchTablesRequest() noexcept
+                      : mode(static_cast<SearchMode::type>(0)),
+                        catalogName(),
+                        databaseName(),
+                        limit(0) {
+  }
+
+  virtual ~SearchTablesRequest() noexcept;
+  /**
+   * 
+   * @see SearchMode
+   */
+  SearchMode::type mode;
+  std::map<std::string, std::string>  queryBody;
+  std::string catalogName;
+  std::string databaseName;
+  int32_t limit;
+
+  _SearchTablesRequest__isset __isset;
+
+  void __set_mode(const SearchMode::type val);
+
+  void __set_queryBody(const std::map<std::string, std::string> & val);
+
+  void __set_catalogName(const std::string& val);
+
+  void __set_databaseName(const std::string& val);
+
+  void __set_limit(const int32_t val);
+
+  bool operator == (const SearchTablesRequest & rhs) const
+  {
+    if (!(mode == rhs.mode))
+      return false;
+    if (!(queryBody == rhs.queryBody))
+      return false;
+    if (__isset.catalogName != rhs.__isset.catalogName)
+      return false;
+    else if (__isset.catalogName && !(catalogName == rhs.catalogName))
+      return false;
+    if (__isset.databaseName != rhs.__isset.databaseName)
+      return false;
+    else if (__isset.databaseName && !(databaseName == rhs.databaseName))
+      return false;
+    if (__isset.limit != rhs.__isset.limit)
+      return false;
+    else if (__isset.limit && !(limit == rhs.limit))
+      return false;
+    return true;
+  }
+  bool operator != (const SearchTablesRequest &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const SearchTablesRequest & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot) override;
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const override;
+
+  virtual void printTo(std::ostream& out) const;
+};
+
+void swap(SearchTablesRequest &a, SearchTablesRequest &b);
+
+std::ostream& operator<<(std::ostream& out, const SearchTablesRequest& obj);
+
+typedef struct _TableSearchHit__isset {
+  _TableSearchHit__isset() : table(false) {}
+  bool table :1;
+} _TableSearchHit__isset;
+
+class TableSearchHit : public virtual ::apache::thrift::TBase {
+ public:
+
+  TableSearchHit(const TableSearchHit&);
+  TableSearchHit& operator=(const TableSearchHit&);
+  TableSearchHit() noexcept
+                 : catName(),
+                   dbName(),
+                   tableName(),
+                   score(0) {
+  }
+
+  virtual ~TableSearchHit() noexcept;
+  std::string catName;
+  std::string dbName;
+  std::string tableName;
+  double score;
+  Table table;
+
+  _TableSearchHit__isset __isset;
+
+  void __set_catName(const std::string& val);
+
+  void __set_dbName(const std::string& val);
+
+  void __set_tableName(const std::string& val);
+
+  void __set_score(const double val);
+
+  void __set_table(const Table& val);
+
+  bool operator == (const TableSearchHit & rhs) const
+  {
+    if (!(catName == rhs.catName))
+      return false;
+    if (!(dbName == rhs.dbName))
+      return false;
+    if (!(tableName == rhs.tableName))
+      return false;
+    if (!(score == rhs.score))
+      return false;
+    if (__isset.table != rhs.__isset.table)
+      return false;
+    else if (__isset.table && !(table == rhs.table))
+      return false;
+    return true;
+  }
+  bool operator != (const TableSearchHit &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const TableSearchHit & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot) override;
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const override;
+
+  virtual void printTo(std::ostream& out) const;
+};
+
+void swap(TableSearchHit &a, TableSearchHit &b);
+
+std::ostream& operator<<(std::ostream& out, const TableSearchHit& obj);
+
+
+class TableSearchResponse : public virtual ::apache::thrift::TBase {
+ public:
+
+  TableSearchResponse(const TableSearchResponse&);
+  TableSearchResponse& operator=(const TableSearchResponse&);
+  TableSearchResponse() noexcept
+                      : total(0),
+                        processedEventId(0) {
+  }
+
+  virtual ~TableSearchResponse() noexcept;
+  std::vector<TableSearchHit>  hits;
+  int64_t total;
+  int64_t processedEventId;
+
+  void __set_hits(const std::vector<TableSearchHit> & val);
+
+  void __set_total(const int64_t val);
+
+  void __set_processedEventId(const int64_t val);
+
+  bool operator == (const TableSearchResponse & rhs) const
+  {
+    if (!(hits == rhs.hits))
+      return false;
+    if (!(total == rhs.total))
+      return false;
+    if (!(processedEventId == rhs.processedEventId))
+      return false;
+    return true;
+  }
+  bool operator != (const TableSearchResponse &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const TableSearchResponse & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot) override;
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const override;
+
+  virtual void printTo(std::ostream& out) const;
+};
+
+void swap(TableSearchResponse &a, TableSearchResponse &b);
+
+std::ostream& operator<<(std::ostream& out, const TableSearchResponse& obj);
+
 
 class Materialization : public virtual ::apache::thrift::TBase {
  public:
@@ -22324,6 +22542,96 @@ class CompactionAbortedException : public ::apache::thrift::TException {
 void swap(CompactionAbortedException &a, CompactionAbortedException &b);
 
 std::ostream& operator<<(std::ostream& out, const CompactionAbortedException& obj);
+
+typedef struct _IndexNotReadyException__isset {
+  _IndexNotReadyException__isset() : message(false) {}
+  bool message :1;
+} _IndexNotReadyException__isset;
+
+class IndexNotReadyException : public ::apache::thrift::TException {
+ public:
+
+  IndexNotReadyException(const IndexNotReadyException&);
+  IndexNotReadyException& operator=(const IndexNotReadyException&);
+  IndexNotReadyException() noexcept
+                         : message() {
+  }
+
+  virtual ~IndexNotReadyException() noexcept;
+  std::string message;
+
+  _IndexNotReadyException__isset __isset;
+
+  void __set_message(const std::string& val);
+
+  bool operator == (const IndexNotReadyException & rhs) const
+  {
+    if (!(message == rhs.message))
+      return false;
+    return true;
+  }
+  bool operator != (const IndexNotReadyException &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const IndexNotReadyException & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+  virtual void printTo(std::ostream& out) const;
+  mutable std::string thriftTExceptionMessageHolder_;
+  const char* what() const noexcept override;
+};
+
+void swap(IndexNotReadyException &a, IndexNotReadyException &b);
+
+std::ostream& operator<<(std::ostream& out, const IndexNotReadyException& obj);
+
+typedef struct _IndexNotHealthyException__isset {
+  _IndexNotHealthyException__isset() : message(false) {}
+  bool message :1;
+} _IndexNotHealthyException__isset;
+
+class IndexNotHealthyException : public ::apache::thrift::TException {
+ public:
+
+  IndexNotHealthyException(const IndexNotHealthyException&);
+  IndexNotHealthyException& operator=(const IndexNotHealthyException&);
+  IndexNotHealthyException() noexcept
+                           : message() {
+  }
+
+  virtual ~IndexNotHealthyException() noexcept;
+  std::string message;
+
+  _IndexNotHealthyException__isset __isset;
+
+  void __set_message(const std::string& val);
+
+  bool operator == (const IndexNotHealthyException & rhs) const
+  {
+    if (!(message == rhs.message))
+      return false;
+    return true;
+  }
+  bool operator != (const IndexNotHealthyException &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const IndexNotHealthyException & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+  virtual void printTo(std::ostream& out) const;
+  mutable std::string thriftTExceptionMessageHolder_;
+  const char* what() const noexcept override;
+};
+
+void swap(IndexNotHealthyException &a, IndexNotHealthyException &b);
+
+std::ostream& operator<<(std::ostream& out, const IndexNotHealthyException& obj);
 
 typedef struct _NoSuchCompactionException__isset {
   _NoSuchCompactionException__isset() : message(false) {}

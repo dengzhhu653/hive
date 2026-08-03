@@ -1601,4 +1601,10 @@ public abstract class AbstractThriftHiveMetastore implements Iface {
         throws MetaException, org.apache.thrift.TException {
         throw new UnsupportedOperationException("this method is not supported");
     }
+
+    @Override
+    public TableSearchResponse search_tables_req(SearchTablesRequest req)
+        throws MetaException, IndexNotReadyException, IndexNotHealthyException, TException {
+        throw new UnsupportedOperationException("this method is not supported");
+    }
 }

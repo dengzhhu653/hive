@@ -23,6 +23,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hive.search.exception.SearchException;
 
 public record SearchOptions(Configuration configuration) {
+  public static final String ENABLED = "metastore.search.enabled";
+  public static final boolean ENABLED_DEFAULT = false;
+
   public static final String REFRESH_INTERVAL_SECONDS = "metastore.search.refresh.interval.seconds";
   public static final long REFRESH_INTERVAL_SECONDS_DEFAULT = 1L;
 
@@ -55,6 +58,10 @@ public record SearchOptions(Configuration configuration) {
 
   public static final String BAYESIAN_SEED = "metastore.search.bayesian.seed";
   public static final long BAYESIAN_SEED_DEFAULT = 42L;
+
+  public boolean isEnabled() {
+    return configuration.getBoolean(ENABLED, ENABLED_DEFAULT);
+  }
 
   public Duration getRefreshInterval() {
     return Duration.ofSeconds(

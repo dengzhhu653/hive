@@ -1851,6 +1851,34 @@ struct TableMeta {
   7: optional PrincipalType ownerType;
 }
 
+enum SearchMode {
+  MATCH = 1,
+  SEMANTIC = 2,
+  HYBRID = 3
+}
+
+struct SearchTablesRequest {
+  1: required SearchMode mode,
+  2: required map<string, string> queryBody,
+  3: optional string catalogName,
+  4: optional string databaseName,
+  5: optional i32 limit,
+}
+
+struct TableSearchHit {
+  1: required string catName,
+  2: required string dbName,
+  3: required string tableName,
+  4: required double score,
+  5: optional Table table,
+}
+
+struct TableSearchResponse {
+  1: required list<TableSearchHit> hits,
+  2: required i64 total,
+  3: required i64 processedEventId,
+}
+
 struct Materialization {
   1: required bool sourceTablesUpdateDeleteModified;
   2: required bool sourceTablesCompacted;
@@ -2620,7 +2648,15 @@ exception NoSuchLockException {
 }
 
 exception CompactionAbortedException {
-    1: string message
+  1: string message
+}
+
+exception IndexNotReadyException {
+  1: string message
+}
+
+exception IndexNotHealthyException {
+  1: string message
 }
 
 exception NoSuchCompactionException {
@@ -3365,6 +3401,9 @@ PartitionsResponse get_partitions_req(1:PartitionsRequest req)
   void drop_package(1: DropPackageRequest request) throws (1:MetaException o1)
   list<WriteEventInfo> get_all_write_event_info(1: GetAllWriteEventInfoRequest request) throws (1:MetaException o1)
   ReplayedTxnsForPolicyResult get_replayed_txns_for_policy(1: string policyName) throws (1: MetaException o1)
+
+  TableSearchResponse search_tables_req(1:SearchTablesRequest req)
+      throws (1:IndexNotReadyException o2, 2:IndexNotHealthyException o3)
 }
 
 // * Note about the DDL_TIME: When creating or altering a table or a partition,

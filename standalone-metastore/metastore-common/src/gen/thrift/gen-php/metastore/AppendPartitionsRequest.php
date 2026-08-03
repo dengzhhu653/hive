@@ -157,13 +157,13 @@ class AppendPartitionsRequest
                 case 5:
                     if ($ftype == TType::LST) {
                         $this->partVals = array();
-                        $_size1285 = 0;
-                        $_etype1288 = 0;
-                        $xfer += $input->readListBegin($_etype1288, $_size1285);
-                        for ($_i1289 = 0; $_i1289 < $_size1285; ++$_i1289) {
-                            $elem1290 = null;
-                            $xfer += $input->readString($elem1290);
-                            $this->partVals []= $elem1290;
+                        $_size1301 = 0;
+                        $_etype1304 = 0;
+                        $xfer += $input->readListBegin($_etype1304, $_size1301);
+                        for ($_i1305 = 0; $_i1305 < $_size1301; ++$_i1305) {
+                            $elem1306 = null;
+                            $xfer += $input->readString($elem1306);
+                            $this->partVals []= $elem1306;
                         }
                         $xfer += $input->readListEnd();
                     } else {
@@ -218,8 +218,8 @@ class AppendPartitionsRequest
             }
             $xfer += $output->writeFieldBegin('partVals', TType::LST, 5);
             $output->writeListBegin(TType::STRING, count($this->partVals));
-            foreach ($this->partVals as $iter1291) {
-                $xfer += $output->writeString($iter1291);
+            foreach ($this->partVals as $iter1307) {
+                $xfer += $output->writeString($iter1307);
             }
             $output->writeListEnd();
             $xfer += $output->writeFieldEnd();

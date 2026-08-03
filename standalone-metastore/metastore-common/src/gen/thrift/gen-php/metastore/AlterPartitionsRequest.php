@@ -192,14 +192,14 @@ class AlterPartitionsRequest
                 case 4:
                     if ($ftype == TType::LST) {
                         $this->partitions = array();
-                        $_size1271 = 0;
-                        $_etype1274 = 0;
-                        $xfer += $input->readListBegin($_etype1274, $_size1271);
-                        for ($_i1275 = 0; $_i1275 < $_size1271; ++$_i1275) {
-                            $elem1276 = null;
-                            $elem1276 = new \metastore\Partition();
-                            $xfer += $elem1276->read($input);
-                            $this->partitions []= $elem1276;
+                        $_size1287 = 0;
+                        $_etype1290 = 0;
+                        $xfer += $input->readListBegin($_etype1290, $_size1287);
+                        for ($_i1291 = 0; $_i1291 < $_size1287; ++$_i1291) {
+                            $elem1292 = null;
+                            $elem1292 = new \metastore\Partition();
+                            $xfer += $elem1292->read($input);
+                            $this->partitions []= $elem1292;
                         }
                         $xfer += $input->readListEnd();
                     } else {
@@ -238,14 +238,14 @@ class AlterPartitionsRequest
                 case 9:
                     if ($ftype == TType::LST) {
                         $this->partitionColSchema = array();
-                        $_size1277 = 0;
-                        $_etype1280 = 0;
-                        $xfer += $input->readListBegin($_etype1280, $_size1277);
-                        for ($_i1281 = 0; $_i1281 < $_size1277; ++$_i1281) {
-                            $elem1282 = null;
-                            $elem1282 = new \metastore\FieldSchema();
-                            $xfer += $elem1282->read($input);
-                            $this->partitionColSchema []= $elem1282;
+                        $_size1293 = 0;
+                        $_etype1296 = 0;
+                        $xfer += $input->readListBegin($_etype1296, $_size1293);
+                        for ($_i1297 = 0; $_i1297 < $_size1293; ++$_i1297) {
+                            $elem1298 = null;
+                            $elem1298 = new \metastore\FieldSchema();
+                            $xfer += $elem1298->read($input);
+                            $this->partitionColSchema []= $elem1298;
                         }
                         $xfer += $input->readListEnd();
                     } else {
@@ -287,8 +287,8 @@ class AlterPartitionsRequest
             }
             $xfer += $output->writeFieldBegin('partitions', TType::LST, 4);
             $output->writeListBegin(TType::STRUCT, count($this->partitions));
-            foreach ($this->partitions as $iter1283) {
-                $xfer += $iter1283->write($output);
+            foreach ($this->partitions as $iter1299) {
+                $xfer += $iter1299->write($output);
             }
             $output->writeListEnd();
             $xfer += $output->writeFieldEnd();
@@ -322,8 +322,8 @@ class AlterPartitionsRequest
             }
             $xfer += $output->writeFieldBegin('partitionColSchema', TType::LST, 9);
             $output->writeListBegin(TType::STRUCT, count($this->partitionColSchema));
-            foreach ($this->partitionColSchema as $iter1284) {
-                $xfer += $iter1284->write($output);
+            foreach ($this->partitionColSchema as $iter1300) {
+                $xfer += $iter1300->write($output);
             }
             $output->writeListEnd();
             $xfer += $output->writeFieldEnd();

@@ -209,6 +209,14 @@ module ClientCapability
   VALID_VALUES = Set.new([TEST_CAPABILITY, INSERT_ONLY_TABLES]).freeze
 end
 
+module SearchMode
+  MATCH = 1
+  SEMANTIC = 2
+  HYBRID = 3
+  VALUE_MAP = {1 => "MATCH", 2 => "SEMANTIC", 3 => "HYBRID"}
+  VALID_VALUES = Set.new([MATCH, SEMANTIC, HYBRID]).freeze
+end
+
 module WMResourcePlanStatus
   ACTIVE = 1
   ENABLED = 2
@@ -679,6 +687,12 @@ class CmRecycleResponse; end
 
 class TableMeta; end
 
+class SearchTablesRequest; end
+
+class TableSearchHit; end
+
+class TableSearchResponse; end
+
 class Materialization; end
 
 class WMResourcePlan; end
@@ -922,6 +936,10 @@ class TxnOpenException < ::Thrift::Exception; end
 class NoSuchLockException < ::Thrift::Exception; end
 
 class CompactionAbortedException < ::Thrift::Exception; end
+
+class IndexNotReadyException < ::Thrift::Exception; end
+
+class IndexNotHealthyException < ::Thrift::Exception; end
 
 class NoSuchCompactionException < ::Thrift::Exception; end
 
@@ -6197,6 +6215,86 @@ class TableMeta
   ::Thrift::Struct.generate_accessors self
 end
 
+class SearchTablesRequest
+  include ::Thrift::Struct, ::Thrift::Struct_Union
+  MODE = 1
+  QUERYBODY = 2
+  CATALOGNAME = 3
+  DATABASENAME = 4
+  LIMIT = 5
+
+  FIELDS = {
+    MODE => {:type => ::Thrift::Types::I32, :name => 'mode', :enum_class => ::SearchMode},
+    QUERYBODY => {:type => ::Thrift::Types::MAP, :name => 'queryBody', :key => {:type => ::Thrift::Types::STRING}, :value => {:type => ::Thrift::Types::STRING}},
+    CATALOGNAME => {:type => ::Thrift::Types::STRING, :name => 'catalogName', :optional => true},
+    DATABASENAME => {:type => ::Thrift::Types::STRING, :name => 'databaseName', :optional => true},
+    LIMIT => {:type => ::Thrift::Types::I32, :name => 'limit', :optional => true}
+  }
+
+  def struct_fields; FIELDS; end
+
+  def validate
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field mode is unset!') unless @mode
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field queryBody is unset!') unless @queryBody
+    unless @mode.nil? || ::SearchMode::VALID_VALUES.include?(@mode)
+      raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Invalid value of field mode!')
+    end
+  end
+
+  ::Thrift::Struct.generate_accessors self
+end
+
+class TableSearchHit
+  include ::Thrift::Struct, ::Thrift::Struct_Union
+  CATNAME = 1
+  DBNAME = 2
+  TABLENAME = 3
+  SCORE = 4
+  TABLE = 5
+
+  FIELDS = {
+    CATNAME => {:type => ::Thrift::Types::STRING, :name => 'catName'},
+    DBNAME => {:type => ::Thrift::Types::STRING, :name => 'dbName'},
+    TABLENAME => {:type => ::Thrift::Types::STRING, :name => 'tableName'},
+    SCORE => {:type => ::Thrift::Types::DOUBLE, :name => 'score'},
+    TABLE => {:type => ::Thrift::Types::STRUCT, :name => 'table', :class => ::Table, :optional => true}
+  }
+
+  def struct_fields; FIELDS; end
+
+  def validate
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field catName is unset!') unless @catName
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field dbName is unset!') unless @dbName
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field tableName is unset!') unless @tableName
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field score is unset!') unless @score
+  end
+
+  ::Thrift::Struct.generate_accessors self
+end
+
+class TableSearchResponse
+  include ::Thrift::Struct, ::Thrift::Struct_Union
+  HITS = 1
+  TOTAL = 2
+  PROCESSEDEVENTID = 3
+
+  FIELDS = {
+    HITS => {:type => ::Thrift::Types::LIST, :name => 'hits', :element => {:type => ::Thrift::Types::STRUCT, :class => ::TableSearchHit}},
+    TOTAL => {:type => ::Thrift::Types::I64, :name => 'total'},
+    PROCESSEDEVENTID => {:type => ::Thrift::Types::I64, :name => 'processedEventId'}
+  }
+
+  def struct_fields; FIELDS; end
+
+  def validate
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field hits is unset!') unless @hits
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field total is unset!') unless @total
+    raise ::Thrift::ProtocolException.new(::Thrift::ProtocolException::UNKNOWN, 'Required field processedEventId is unset!') unless @processedEventId
+  end
+
+  ::Thrift::Struct.generate_accessors self
+end
+
 class Materialization
   include ::Thrift::Struct, ::Thrift::Struct_Union
   SOURCETABLESUPDATEDELETEMODIFIED = 1
@@ -8829,6 +8927,48 @@ class NoSuchLockException < ::Thrift::Exception
 end
 
 class CompactionAbortedException < ::Thrift::Exception
+  include ::Thrift::Struct, ::Thrift::Struct_Union
+  def initialize(message=nil)
+    super()
+    self.message = message
+  end
+
+  MESSAGE = 1
+
+  FIELDS = {
+    MESSAGE => {:type => ::Thrift::Types::STRING, :name => 'message'}
+  }
+
+  def struct_fields; FIELDS; end
+
+  def validate
+  end
+
+  ::Thrift::Struct.generate_accessors self
+end
+
+class IndexNotReadyException < ::Thrift::Exception
+  include ::Thrift::Struct, ::Thrift::Struct_Union
+  def initialize(message=nil)
+    super()
+    self.message = message
+  end
+
+  MESSAGE = 1
+
+  FIELDS = {
+    MESSAGE => {:type => ::Thrift::Types::STRING, :name => 'message'}
+  }
+
+  def struct_fields; FIELDS; end
+
+  def validate
+  end
+
+  ::Thrift::Struct.generate_accessors self
+end
+
+class IndexNotHealthyException < ::Thrift::Exception
   include ::Thrift::Struct, ::Thrift::Struct_Union
   def initialize(message=nil)
     super()

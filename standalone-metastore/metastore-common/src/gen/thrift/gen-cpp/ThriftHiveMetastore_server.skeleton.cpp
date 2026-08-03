@@ -1455,6 +1455,11 @@ class ThriftHiveMetastoreHandler : virtual public ThriftHiveMetastoreIf {
     printf("get_replayed_txns_for_policy\n");
   }
 
+  void search_tables_req(TableSearchResponse& _return, const SearchTablesRequest& req) {
+    // Your implementation goes here
+    printf("search_tables_req\n");
+  }
+
 };
 
 int main(int argc, char **argv) {

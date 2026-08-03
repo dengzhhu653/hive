@@ -1435,6 +1435,27 @@ public class HMSHandler extends PrivilegeHandler {
   }
 
   @Override
+  public TableSearchResponse search_tables_req(SearchTablesRequest req)
+      throws TException {
+    startFunction("search_tables_req", ": mode=" + req.getMode());
+    Exception ex = null;
+    boolean success = false;
+    try {
+      AbstractRequestHandler.Result<TableSearchResponse> result =
+          AbstractRequestHandler.offer(this, req).getResult();
+      success = true;
+      return result.transform();
+    } catch (Exception e) {
+      ex = e;
+      throw handleException(e)
+          .throwIfInstance(IndexNotReadyException.class, IndexNotHealthyException.class)
+          .defaultTException();
+    } finally {
+      endFunction("search_tables_req", success, ex);
+    }
+  }
+
+  @Override
   public List<TableMeta> get_table_meta(String dbnames, String tblNames, List<String> tblTypes)
       throws TException {
     String[] parsedDbName = parseDbName(dbnames, conf);

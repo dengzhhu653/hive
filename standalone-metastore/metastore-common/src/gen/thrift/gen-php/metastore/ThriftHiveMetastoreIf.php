@@ -2067,4 +2067,11 @@ interface ThriftHiveMetastoreIf extends \FacebookServiceIf
      * @throws \metastore\MetaException
      */
     public function get_replayed_txns_for_policy($policyName);
+    /**
+     * @param \metastore\SearchTablesRequest $req
+     * @return \metastore\TableSearchResponse
+     * @throws \metastore\IndexNotReadyException
+     * @throws \metastore\IndexNotHealthyException
+     */
+    public function search_tables_req(\metastore\SearchTablesRequest $req);
 }

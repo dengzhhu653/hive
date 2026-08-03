@@ -313,6 +313,7 @@ class ThriftHiveMetastoreIf : virtual public  ::facebook::fb303::FacebookService
   virtual void drop_package(const DropPackageRequest& request) = 0;
   virtual void get_all_write_event_info(std::vector<WriteEventInfo> & _return, const GetAllWriteEventInfoRequest& request) = 0;
   virtual void get_replayed_txns_for_policy(ReplayedTxnsForPolicyResult& _return, const std::string& policyName) = 0;
+  virtual void search_tables_req(TableSearchResponse& _return, const SearchTablesRequest& req) = 0;
 };
 
 class ThriftHiveMetastoreIfFactory : virtual public  ::facebook::fb303::FacebookServiceIfFactory {
@@ -1236,6 +1237,9 @@ class ThriftHiveMetastoreNull : virtual public ThriftHiveMetastoreIf , virtual p
     return;
   }
   void get_replayed_txns_for_policy(ReplayedTxnsForPolicyResult& /* _return */, const std::string& /* policyName */) override {
+    return;
+  }
+  void search_tables_req(TableSearchResponse& /* _return */, const SearchTablesRequest& /* req */) override {
     return;
   }
 };
@@ -36006,6 +36010,126 @@ class ThriftHiveMetastore_get_replayed_txns_for_policy_presult {
 
 };
 
+typedef struct _ThriftHiveMetastore_search_tables_req_args__isset {
+  _ThriftHiveMetastore_search_tables_req_args__isset() : req(false) {}
+  bool req :1;
+} _ThriftHiveMetastore_search_tables_req_args__isset;
+
+class ThriftHiveMetastore_search_tables_req_args {
+ public:
+
+  ThriftHiveMetastore_search_tables_req_args(const ThriftHiveMetastore_search_tables_req_args&);
+  ThriftHiveMetastore_search_tables_req_args& operator=(const ThriftHiveMetastore_search_tables_req_args&);
+  ThriftHiveMetastore_search_tables_req_args() noexcept {
+  }
+
+  virtual ~ThriftHiveMetastore_search_tables_req_args() noexcept;
+  SearchTablesRequest req;
+
+  _ThriftHiveMetastore_search_tables_req_args__isset __isset;
+
+  void __set_req(const SearchTablesRequest& val);
+
+  bool operator == (const ThriftHiveMetastore_search_tables_req_args & rhs) const
+  {
+    if (!(req == rhs.req))
+      return false;
+    return true;
+  }
+  bool operator != (const ThriftHiveMetastore_search_tables_req_args &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ThriftHiveMetastore_search_tables_req_args & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+
+class ThriftHiveMetastore_search_tables_req_pargs {
+ public:
+
+
+  virtual ~ThriftHiveMetastore_search_tables_req_pargs() noexcept;
+  const SearchTablesRequest* req;
+
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ThriftHiveMetastore_search_tables_req_result__isset {
+  _ThriftHiveMetastore_search_tables_req_result__isset() : success(false), o2(false), o3(false) {}
+  bool success :1;
+  bool o2 :1;
+  bool o3 :1;
+} _ThriftHiveMetastore_search_tables_req_result__isset;
+
+class ThriftHiveMetastore_search_tables_req_result {
+ public:
+
+  ThriftHiveMetastore_search_tables_req_result(const ThriftHiveMetastore_search_tables_req_result&);
+  ThriftHiveMetastore_search_tables_req_result& operator=(const ThriftHiveMetastore_search_tables_req_result&);
+  ThriftHiveMetastore_search_tables_req_result() noexcept {
+  }
+
+  virtual ~ThriftHiveMetastore_search_tables_req_result() noexcept;
+  TableSearchResponse success;
+  IndexNotReadyException o2;
+  IndexNotHealthyException o3;
+
+  _ThriftHiveMetastore_search_tables_req_result__isset __isset;
+
+  void __set_success(const TableSearchResponse& val);
+
+  void __set_o2(const IndexNotReadyException& val);
+
+  void __set_o3(const IndexNotHealthyException& val);
+
+  bool operator == (const ThriftHiveMetastore_search_tables_req_result & rhs) const
+  {
+    if (!(success == rhs.success))
+      return false;
+    if (!(o2 == rhs.o2))
+      return false;
+    if (!(o3 == rhs.o3))
+      return false;
+    return true;
+  }
+  bool operator != (const ThriftHiveMetastore_search_tables_req_result &rhs) const {
+    return !(*this == rhs);
+  }
+
+  bool operator < (const ThriftHiveMetastore_search_tables_req_result & ) const;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+  uint32_t write(::apache::thrift::protocol::TProtocol* oprot) const;
+
+};
+
+typedef struct _ThriftHiveMetastore_search_tables_req_presult__isset {
+  _ThriftHiveMetastore_search_tables_req_presult__isset() : success(false), o2(false), o3(false) {}
+  bool success :1;
+  bool o2 :1;
+  bool o3 :1;
+} _ThriftHiveMetastore_search_tables_req_presult__isset;
+
+class ThriftHiveMetastore_search_tables_req_presult {
+ public:
+
+
+  virtual ~ThriftHiveMetastore_search_tables_req_presult() noexcept;
+  TableSearchResponse* success;
+  IndexNotReadyException o2;
+  IndexNotHealthyException o3;
+
+  _ThriftHiveMetastore_search_tables_req_presult__isset __isset;
+
+  uint32_t read(::apache::thrift::protocol::TProtocol* iprot);
+
+};
+
 class ThriftHiveMetastoreClient : virtual public ThriftHiveMetastoreIf, public  ::facebook::fb303::FacebookServiceClient {
  public:
   ThriftHiveMetastoreClient(std::shared_ptr< ::apache::thrift::protocol::TProtocol> prot) :
@@ -36878,6 +37002,9 @@ class ThriftHiveMetastoreClient : virtual public ThriftHiveMetastoreIf, public  
   void get_replayed_txns_for_policy(ReplayedTxnsForPolicyResult& _return, const std::string& policyName) override;
   void send_get_replayed_txns_for_policy(const std::string& policyName);
   void recv_get_replayed_txns_for_policy(ReplayedTxnsForPolicyResult& _return);
+  void search_tables_req(TableSearchResponse& _return, const SearchTablesRequest& req) override;
+  void send_search_tables_req(const SearchTablesRequest& req);
+  void recv_search_tables_req(TableSearchResponse& _return);
 };
 
 class ThriftHiveMetastoreProcessor : public  ::facebook::fb303::FacebookServiceProcessor {
@@ -37175,6 +37302,7 @@ class ThriftHiveMetastoreProcessor : public  ::facebook::fb303::FacebookServiceP
   void process_drop_package(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_get_all_write_event_info(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
   void process_get_replayed_txns_for_policy(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
+  void process_search_tables_req(int32_t seqid, ::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, void* callContext);
  public:
   ThriftHiveMetastoreProcessor(::std::shared_ptr<ThriftHiveMetastoreIf> iface) :
      ::facebook::fb303::FacebookServiceProcessor(iface),
@@ -37466,6 +37594,7 @@ class ThriftHiveMetastoreProcessor : public  ::facebook::fb303::FacebookServiceP
     processMap_["drop_package"] = &ThriftHiveMetastoreProcessor::process_drop_package;
     processMap_["get_all_write_event_info"] = &ThriftHiveMetastoreProcessor::process_get_all_write_event_info;
     processMap_["get_replayed_txns_for_policy"] = &ThriftHiveMetastoreProcessor::process_get_replayed_txns_for_policy;
+    processMap_["search_tables_req"] = &ThriftHiveMetastoreProcessor::process_search_tables_req;
   }
 
   virtual ~ThriftHiveMetastoreProcessor() {}
@@ -40256,6 +40385,16 @@ class ThriftHiveMetastoreMultiface : virtual public ThriftHiveMetastoreIf, publi
     return;
   }
 
+  void search_tables_req(TableSearchResponse& _return, const SearchTablesRequest& req) override {
+    size_t sz = ifaces_.size();
+    size_t i = 0;
+    for (; i < (sz - 1); ++i) {
+      ifaces_[i]->search_tables_req(_return, req);
+    }
+    ifaces_[i]->search_tables_req(_return, req);
+    return;
+  }
+
 };
 
 // The 'concurrent' client is a thread safe client that correctly handles
@@ -41133,6 +41272,9 @@ class ThriftHiveMetastoreConcurrentClient : virtual public ThriftHiveMetastoreIf
   void get_replayed_txns_for_policy(ReplayedTxnsForPolicyResult& _return, const std::string& policyName) override;
   int32_t send_get_replayed_txns_for_policy(const std::string& policyName);
   void recv_get_replayed_txns_for_policy(ReplayedTxnsForPolicyResult& _return, const int32_t seqid);
+  void search_tables_req(TableSearchResponse& _return, const SearchTablesRequest& req) override;
+  int32_t send_search_tables_req(const SearchTablesRequest& req);
+  void recv_search_tables_req(TableSearchResponse& _return, const int32_t seqid);
 };
 
 #ifdef _MSC_VER

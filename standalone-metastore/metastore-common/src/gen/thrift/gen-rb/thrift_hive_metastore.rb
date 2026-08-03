@@ -4761,6 +4761,23 @@ module ThriftHiveMetastore
       raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'get_replayed_txns_for_policy failed: unknown result')
     end
 
+    def search_tables_req(req)
+      send_search_tables_req(req)
+      return recv_search_tables_req()
+    end
+
+    def send_search_tables_req(req)
+      send_message('search_tables_req', Search_tables_req_args, :req => req)
+    end
+
+    def recv_search_tables_req()
+      result = receive_message(Search_tables_req_result)
+      return result.success unless result.success.nil?
+      raise result.o2 unless result.o2.nil?
+      raise result.o3 unless result.o3.nil?
+      raise ::Thrift::ApplicationException.new(::Thrift::ApplicationException::MISSING_RESULT, 'search_tables_req failed: unknown result')
+    end
+
   end
 
   class Processor < ::FacebookService::Processor 
@@ -8317,6 +8334,19 @@ module ThriftHiveMetastore
         result.o1 = o1
       end
       write_result(result, oprot, 'get_replayed_txns_for_policy', seqid)
+    end
+
+    def process_search_tables_req(seqid, iprot, oprot)
+      args = read_args(iprot, Search_tables_req_args)
+      result = Search_tables_req_result.new()
+      begin
+        result.success = @handler.search_tables_req(args.req)
+      rescue ::IndexNotReadyException => o2
+        result.o2 = o2
+      rescue ::IndexNotHealthyException => o3
+        result.o3 = o3
+      end
+      write_result(result, oprot, 'search_tables_req', seqid)
     end
 
   end
@@ -18758,6 +18788,42 @@ module ThriftHiveMetastore
     FIELDS = {
       SUCCESS => {:type => ::Thrift::Types::STRUCT, :name => 'success', :class => ::ReplayedTxnsForPolicyResult},
       O1 => {:type => ::Thrift::Types::STRUCT, :name => 'o1', :class => ::MetaException}
+    }
+
+    def struct_fields; FIELDS; end
+
+    def validate
+    end
+
+    ::Thrift::Struct.generate_accessors self
+  end
+
+  class Search_tables_req_args
+    include ::Thrift::Struct, ::Thrift::Struct_Union
+    REQ = 1
+
+    FIELDS = {
+      REQ => {:type => ::Thrift::Types::STRUCT, :name => 'req', :class => ::SearchTablesRequest}
+    }
+
+    def struct_fields; FIELDS; end
+
+    def validate
+    end
+
+    ::Thrift::Struct.generate_accessors self
+  end
+
+  class Search_tables_req_result
+    include ::Thrift::Struct, ::Thrift::Struct_Union
+    SUCCESS = 0
+    O2 = 1
+    O3 = 2
+
+    FIELDS = {
+      SUCCESS => {:type => ::Thrift::Types::STRUCT, :name => 'success', :class => ::TableSearchResponse},
+      O2 => {:type => ::Thrift::Types::STRUCT, :name => 'o2', :class => ::IndexNotReadyException},
+      O3 => {:type => ::Thrift::Types::STRUCT, :name => 'o3', :class => ::IndexNotHealthyException}
     }
 
     def struct_fields; FIELDS; end
