@@ -24,11 +24,13 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.hive.metastore.api.SearchTablesRequest;
 import org.apache.hadoop.hive.metastore.api.TableSearchResponse;
+import org.apache.hadoop.hive.metastore.client.utils.ClientDesc;
 import org.apache.thrift.TException;
 
 /** Narrow client surface for metastore table search RPCs. */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
+@ClientDesc(alias = "searchTable", implClz = "org.apache.hadoop.hive.metastore.client.MetastoreSearchClient")
 public interface SearchTable extends Closeable {
   TableSearchResponse searchTables(SearchTablesRequest request) throws TException, IOException;
 }

@@ -19,6 +19,7 @@
 package org.apache.hadoop.hive.metastore;
 
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -37,7 +38,9 @@ import org.apache.hadoop.hive.common.classification.RetrySemantics;
 import org.apache.hadoop.hive.metastore.annotation.NoReconnect;
 import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.metastore.api.Package;
+import org.apache.hadoop.hive.metastore.client.utils.ClientDesc;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
+import org.apache.hadoop.hive.metastore.utils.JavaUtils;
 import org.apache.thrift.TException;
 
 /**
@@ -4998,5 +5001,17 @@ public interface IMetaStoreClient extends AutoCloseable {
   default Map<String, Map<String, String>> getProperties(String nameSpace, String mapPrefix, 
       String mapPredicate, String... selection) throws TException {
     throw new UnsupportedOperationException();
+  }
+
+  @SuppressWarnings("unchecked, unused")
+  default <T extends Closeable> T getMetastoreHandler(Class<T> handlerClz, Configuration configuration)
+      throws TException {
+    ClientDesc desc = handlerClz.getAnnotation(ClientDesc.class);
+    if (desc == null) {
+      throw new UnsupportedOperationException();
+    }
+    String propKey = "metastore." + desc.alias() + ".handler";
+    Class<?> impl = configuration.getClass(propKey, JavaUtils.getClass(desc.implClz(), handlerClz));
+    return (T) JavaUtils.newInstance(impl, new Class[] {Configuration.class}, new Object[] {configuration});
   }
 }
