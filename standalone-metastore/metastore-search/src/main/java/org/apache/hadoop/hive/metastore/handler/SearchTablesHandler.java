@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.TableName;
+import org.apache.hadoop.hive.metastore.HiveMetaStore;
 import org.apache.hadoop.hive.metastore.IHMSHandler;
 import org.apache.hadoop.hive.metastore.MetaStoreFilterHook;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -62,6 +63,9 @@ public class SearchTablesHandler
     this.filterHook = handler.getMetaFilterHook();
     if (!new SearchOptions(configuration).isEnabled()) {
       throw new TException("Search is disabled, turn on metastore.search.enabled to support it");
+    }
+    if (!HiveMetaStore.isMetaStoreRemote()) {
+      throw new TException("Only remote Metastore can statisfy this request");
     }
     try {
       SearchProvider.install(configuration);
