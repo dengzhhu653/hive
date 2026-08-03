@@ -56,6 +56,11 @@ public record SearchOptions(Configuration configuration) {
   /** Default assumes ~4 chars/token and 512 maxSeqLen (incl. special tokens). */
   public static final int SEMANTIC_SEGMENT_MAX_CHARS_DEFAULT = 1800;
 
+  /** How long a metastore URI stays blacklisted after an unhealthy search index response. */
+  public static final String CLIENT_BLACKLIST_TTL_SECONDS =
+      "metastore.search.client.blacklist.ttl.seconds";
+  public static final long CLIENT_BLACKLIST_TTL_SECONDS_DEFAULT = 30L;
+
   public static final String BAYESIAN_SEED = "metastore.search.bayesian.seed";
   public static final long BAYESIAN_SEED_DEFAULT = 42L;
 
@@ -114,5 +119,10 @@ public record SearchOptions(Configuration configuration) {
 
   public int getSemanticSegmentMaxChars() {
     return Math.max(256, configuration.getInt(SEMANTIC_SEGMENT_MAX_CHARS, SEMANTIC_SEGMENT_MAX_CHARS_DEFAULT));
+  }
+
+  public long getClientBlacklistTtlSeconds() {
+    return Math.max(0L, configuration.getLong(
+        CLIENT_BLACKLIST_TTL_SECONDS, CLIENT_BLACKLIST_TTL_SECONDS_DEFAULT));
   }
 }

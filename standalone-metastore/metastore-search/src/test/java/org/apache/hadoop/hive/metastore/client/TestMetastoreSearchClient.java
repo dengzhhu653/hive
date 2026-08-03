@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.hive.search.client;
+package org.apache.hadoop.hive.metastore.client;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.metastore.annotation.MetastoreUnitTest;
@@ -51,11 +51,28 @@ public class TestMetastoreSearchClient {
   }
 
   @Test
-  public void sharedBlacklistBlocksUnhealthyMetastore() {
-    MetastoreBlacklist blacklist = MetastoreBlacklist.shared();
-    blacklist.block("thrift://bad-host:9083");
+  public void blacklistBlocksUntilTtlExpires() throws Exception {
+    MetastoreBlacklist blacklist = new MetastoreBlacklist(50L);
+    blacklist.block("thrift://bad-host:9083", "unhealthy search index");
 
     assertTrue(blacklist.isBlocked("thrift://bad-host:9083"));
+    assertEquals("unhealthy search index", blacklist.blockReason("thrift://bad-host:9083"));
     assertFalse(blacklist.isBlocked("thrift://good-host:9083"));
+
+    Thread.sleep(60L);
+
+    assertFalse(blacklist.isBlocked("thrift://bad-host:9083"));
+    assertEquals(null, blacklist.blockReason("thrift://bad-host:9083"));
+  }
+
+  @Test
+  public void sharedBlacklistUsesConfiguredTtl() {
+    Configuration conf = new Configuration(false);
+    conf.setLong("metastore.search.client.blacklist.ttl.seconds", 120L);
+    MetastoreBlacklist.shared().clear();
+
+    new MetastoreSearchClient(conf, MetastoreBlacklist.shared());
+
+    assertEquals(120_000L, MetastoreBlacklist.shared().blockTtlMs());
   }
 }
