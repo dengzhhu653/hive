@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.metastore.handler.DropPartitionsHandler;
 import org.apache.hadoop.hive.metastore.handler.ExchangePartitionsHandler;
 import org.apache.hadoop.hive.metastore.handler.GetPartitionsHandler;
 import org.apache.hadoop.hive.metastore.handler.GetTableHandler;
+import org.apache.hadoop.hive.metastore.handler.Handler;
 import org.apache.hadoop.hive.metastore.handler.PrivilegeHandler;
 import org.apache.hadoop.hive.metastore.messaging.EventMessage.EventType;
 import org.apache.hadoop.hive.metastore.metrics.PerfLogger;
@@ -206,90 +207,51 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public void create_catalog(CreateCatalogRequest rqst)
-      throws AlreadyExistsException, InvalidObjectException, MetaException {
-    startFunction("create_catalog", ": " + rqst.getCatalog().toString());
-    boolean success = false;
-    Exception ex = null;
-    try {
-      success = AbstractRequestHandler.offer(this, rqst).success();
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e)
-          .throwIfInstance(AlreadyExistsException.class, InvalidObjectException.class, MetaException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("create_catalog", success, ex);
-    }
+      throws AlreadyExistsException, InvalidObjectException, MetaException, TException {
+    Handler.runAudited(
+        () -> startFunction("create_catalog", ": " + rqst.getCatalog().toString()),
+        (result, ex) -> endFunction("create_catalog", Boolean.TRUE.equals(result), ex),
+        () -> AbstractRequestHandler.offer(this, rqst).success());
   }
 
   @Override
   public void alter_catalog(AlterCatalogRequest rqst) throws TException {
-    startFunction("alter_catalog " + rqst.getName());
-    boolean success = false;
-    Exception ex = null;
-    try {
-      success = AbstractRequestHandler.offer(this, rqst).success();
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).defaultTException();
-    } finally {
-      endFunction("alter_catalog", success, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("alter_catalog " + rqst.getName()),
+        (result, ex) -> endFunction("alter_catalog", Boolean.TRUE.equals(result), ex),
+        () -> AbstractRequestHandler.offer(this, rqst).success());
   }
 
   @Override
   public GetCatalogResponse get_catalog(GetCatalogRequest rqst)
       throws NoSuchObjectException, TException {
     String catName = rqst.getName();
-    startFunction("get_catalog", ": " + catName);
-    Catalog cat = null;
-    Exception ex = null;
-    try {
-      cat = getMS().getCatalog(catName);
-      firePreEvent(new PreReadCatalogEvent(this, cat));
-      return new GetCatalogResponse(cat);
-    } catch (MetaException|NoSuchObjectException e) {
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_catalog", cat != null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_catalog", ": " + catName),
+        (result, ex) -> endFunction("get_catalog", result != null, ex),
+        () -> {
+          Catalog cat = getMS().getCatalog(catName);
+          firePreEvent(new PreReadCatalogEvent(this, cat));
+          return new GetCatalogResponse(cat);
+        });
   }
 
   @Override
-  public GetCatalogsResponse get_catalogs() throws MetaException {
-    startFunction("get_catalogs");
-
-    List<String> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getCatalogs();
-    } catch (Exception e) {
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_catalog", ret != null, ex);
-    }
+  public GetCatalogsResponse get_catalogs() throws MetaException, TException {
+    List<String> ret = Handler.runAudited(
+        () -> startFunction("get_catalogs"),
+        (result, ex) -> endFunction("get_catalogs", result != null, ex),
+        () -> getMS().getCatalogs());
     return new GetCatalogsResponse(ret == null ? Collections.emptyList() : ret);
-
   }
 
   @Override
   public void drop_catalog(DropCatalogRequest rqst)
-      throws NoSuchObjectException, InvalidOperationException, MetaException {
-    startFunction("drop_catalog", ": " + rqst.getName());
-    boolean success = false;
-    Exception ex = null;
-    try {
-      success = AbstractRequestHandler.offer(this, rqst).success();
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e)
-          .throwIfInstance(NoSuchObjectException.class, InvalidOperationException.class, MetaException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("drop_catalog", success, ex);
-    }
+      throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
+    Handler.runAudited(
+        () -> startFunction("drop_catalog", ": " + rqst.getName()),
+        (result, ex) -> endFunction("drop_catalog", Boolean.TRUE.equals(result), ex),
+        () -> AbstractRequestHandler.offer(this, rqst).success());
   }
 
   @Override
@@ -337,29 +299,23 @@ public class HMSHandler extends PrivilegeHandler {
   }
 
   @Override
-  public Database get_database_req(GetDatabaseRequest request) throws NoSuchObjectException, MetaException {
-    startFunction("get_database", ": " + request.getName());
-    Database db = null;
-    Exception ex = null;
+  public Database get_database_req(GetDatabaseRequest request) throws NoSuchObjectException, MetaException, TException {
     if (request.getName() == null) {
       throw new MetaException("Database name cannot be null.");
     }
     List<String> processorCapabilities = request.getProcessorCapabilities();
     String processorId = request.getProcessorIdentifier();
-    try {
-      db = getMS().getDatabase(request.getCatalogName(), request.getName());
-      firePreEvent(new PreReadDatabaseEvent(db, this));
-      if (transformer != null) {
-        db = transformer.transformDatabase(db, processorCapabilities, processorId);
-      }
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).throwIfInstance(MetaException.class, NoSuchObjectException.class)
-          .defaultRuntimeException();
-    } finally {
-      endFunction("get_database", db != null, ex);
-    }
-    return db;
+    return Handler.runAudited(
+        () -> startFunction("get_database", ": " + request.getName()),
+        (result, ex) -> endFunction("get_database", result != null, ex),
+        () -> {
+          Database db = getMS().getDatabase(request.getCatalogName(), request.getName());
+          firePreEvent(new PreReadDatabaseEvent(db, this));
+          if (transformer != null) {
+            db = transformer.transformDatabase(db, processorCapabilities, processorId);
+          }
+          return db;
+        });
   }
 
   @Override
@@ -482,62 +438,46 @@ public class HMSHandler extends PrivilegeHandler {
   }
 
   @Override
-  public List<String> get_databases(final String pattern) throws MetaException {
-    startFunction("get_databases", ": " + pattern);
-
+  public List<String> get_databases(final String pattern) throws MetaException, TException {
     String[] parsedDbNamed = parseDbName(pattern, conf);
-    List<String> ret = null;
-    Exception ex = null;
-    try {
-      GetDatabaseObjectsRequest req = new GetDatabaseObjectsRequest();
-      req.setCatalogName(parsedDbNamed[CAT_NAME]);
-      if (parsedDbNamed[DB_NAME] != null) {
-        req.setPattern(parsedDbNamed[DB_NAME]);
-      }
-
-      GetDatabaseObjectsResponse response = get_databases_req(req);
-      ret = response.getDatabases().stream()
-          .map(Database::getName)
-          .collect(Collectors.toList());
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_databases", ret != null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("get_databases", ": " + pattern),
+        (result, ex) -> endFunction("get_databases", result != null, ex),
+        () -> {
+          GetDatabaseObjectsRequest req = new GetDatabaseObjectsRequest();
+          req.setCatalogName(parsedDbNamed[CAT_NAME]);
+          if (parsedDbNamed[DB_NAME] != null) {
+            req.setPattern(parsedDbNamed[DB_NAME]);
+          }
+          GetDatabaseObjectsResponse response = get_databases_req(req);
+          return response.getDatabases().stream()
+              .map(Database::getName)
+              .collect(Collectors.toList());
+        });
   }
 
   @Override
-  public List<String> get_all_databases() throws MetaException {
+  public List<String> get_all_databases() throws MetaException, TException {
     // get_databases filters results already. No need to filter here
     return get_databases(MetaStoreUtils.prependCatalogToDbName(null, null, conf));
   }
 
   @Override
   public GetDatabaseObjectsResponse get_databases_req(GetDatabaseObjectsRequest request)
-      throws MetaException {
+      throws MetaException, TException {
     String pattern = request.isSetPattern() ? request.getPattern() : null;
     String catName = request.isSetCatalogName() ? request.getCatalogName() : getDefaultCatalog(conf);
-
-    startFunction("get_databases_req", ": catalogName=" + catName + " pattern=" + pattern);
-
-    GetDatabaseObjectsResponse response = new GetDatabaseObjectsResponse();
-    List<Database> dbs = null;
-    Exception ex = null;
-
-    try {
-      dbs = getMS().getDatabaseObjects(catName, pattern);
-      dbs = FilterUtils.filterDatabaseObjectsIfEnabled(isServerFilterEnabled, filterHook, dbs);
-      response.setDatabases(dbs);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_databases_req", dbs != null, ex);
-    }
-
-    return response;
+    String detail = ": catalogName=" + catName + " pattern=" + pattern;
+    return Handler.runAudited(
+        () -> startFunction("get_databases_req", detail),
+        (result, ex) -> endFunction("get_databases_req", result.getDatabases() != null, ex),
+        () -> {
+          GetDatabaseObjectsResponse response = new GetDatabaseObjectsResponse();
+          List<Database> dbs = getMS().getDatabaseObjects(catName, pattern);
+          dbs = FilterUtils.filterDatabaseObjectsIfEnabled(isServerFilterEnabled, filterHook, dbs);
+          response.setDatabases(dbs);
+          return response;
+        });
   }
 
   private void create_dataconnector_core(RawStore ms, final DataConnector connector)
@@ -629,23 +569,16 @@ public class HMSHandler extends PrivilegeHandler {
   }
 
   @Override
-  public DataConnector get_dataconnector_req(GetDataConnectorRequest request) throws NoSuchObjectException, MetaException {
-    startFunction("get_dataconnector", ": " + request.getConnectorName());
-    DataConnector connector = null;
-    boolean success = false;
-    Exception ex = null;
-    try {
-      connector = get_dataconnector_core(request.getConnectorName());
-      firePreEvent(new PreReadDataConnectorEvent(connector, this));
-      success = true;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).throwIfInstance(MetaException.class, NoSuchObjectException.class)
-          .defaultRuntimeException();
-    } finally {
-      endFunction("get_dataconnector", success, ex);
-    }
-    return connector;
+  public DataConnector get_dataconnector_req(GetDataConnectorRequest request)
+      throws NoSuchObjectException, MetaException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_dataconnector", ": " + request.getConnectorName()),
+        (result, ex) -> endFunction("get_dataconnector", ex == null, ex),
+        () -> {
+          DataConnector connector = get_dataconnector_core(request.getConnectorName());
+          firePreEvent(new PreReadDataConnectorEvent(connector, this));
+          return connector;
+        });
   }
 
   @Override
@@ -701,21 +634,14 @@ public class HMSHandler extends PrivilegeHandler {
   }
 
   @Override
-  public List<String> get_dataconnectors() throws MetaException {
-    startFunction("get_dataconnectors");
-
-    List<String> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getAllDataConnectorNames();
-      ret = FilterUtils.filterDataConnectorsIfEnabled(isServerFilterEnabled, filterHook, ret);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_dataconnectors", ret != null, ex);
-    }
-    return ret;
+  public List<String> get_dataconnectors() throws MetaException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_dataconnectors"),
+        (result, ex) -> endFunction("get_dataconnectors", result != null, ex),
+        () -> {
+          List<String> ret = getMS().getAllDataConnectorNames();
+          return FilterUtils.filterDataConnectorsIfEnabled(isServerFilterEnabled, filterHook, ret);
+        });
   }
 
   @Override
@@ -801,43 +727,28 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public boolean create_type(final Type type) throws AlreadyExistsException,
-      MetaException, InvalidObjectException {
-    startFunction("create_type", ": " + type.toString());
-    boolean success = false;
-    Exception ex = null;
-    try {
-      create_type_core(getMS(), type);
-      success = true;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e)
-          .throwIfInstance(MetaException.class, InvalidObjectException.class, AlreadyExistsException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("create_type", success, ex);
-    }
-
-    return success;
+      MetaException, InvalidObjectException, TException {
+    return Handler.runAudited(
+        () -> startFunction("create_type", ": " + type.toString()),
+        (result, ex) -> endFunction("create_type", Boolean.TRUE.equals(result), ex),
+        () -> {
+          create_type_core(getMS(), type);
+          return true;
+        });
   }
 
   @Override
-  public Type get_type(final String name) throws MetaException, NoSuchObjectException {
-    startFunction("get_type", ": " + name);
-
-    Type ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getType(name);
-      if (null == ret) {
-        throw new NoSuchObjectException("Type \"" + name + "\" not found.");
-      }
-    } catch (Exception e) {
-      ex = e;
-      throwMetaException(e);
-    } finally {
-      endFunction("get_type", ret != null, ex);
-    }
-    return ret;
+  public Type get_type(final String name) throws MetaException, NoSuchObjectException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_type", ": " + name),
+        (result, ex) -> endFunction("get_type", result != null, ex),
+        () -> {
+          Type ret = getMS().getType(name);
+          if (null == ret) {
+            throw new NoSuchObjectException("Type \"" + name + "\" not found.");
+          }
+          return ret;
+        });
   }
 
   private boolean is_type_exists(RawStore ms, String typeName)
@@ -846,21 +757,14 @@ public class HMSHandler extends PrivilegeHandler {
   }
 
   @Override
-  public boolean drop_type(final String name) throws MetaException, NoSuchObjectException {
-    startFunction("drop_type", ": " + name);
-
-    boolean success = false;
-    Exception ex = null;
-    try {
-      // TODO:pc validate that there are no types that refer to this
-      success = getMS().dropType(name);
-    } catch (Exception e) {
-      ex = e;
-      throwMetaException(e);
-    } finally {
-      endFunction("drop_type", success, ex);
-    }
-    return success;
+  public boolean drop_type(final String name) throws MetaException, NoSuchObjectException, TException {
+    return Handler.runAudited(
+        () -> startFunction("drop_type", ": " + name),
+        (result, ex) -> endFunction("drop_type", ex == null && result, ex),
+        () -> {
+          // TODO:pc validate that there are no types that refer to this
+          return getMS().dropType(name);
+        });
   }
 
   @Override
@@ -1227,24 +1131,15 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public TruncateTableResponse truncate_table_req(TruncateTableRequest req)
-      throws NoSuchObjectException, MetaException {
+      throws NoSuchObjectException, MetaException, TException {
     String[] parsedDbName = parseDbName(req.getDbName(), getConf());
-    startFunction("truncate_table_req",
-        ": db=" + parsedDbName[DB_NAME] + " tab=" + req.getTableName());
-    Exception ex = null;
-    boolean success = false;
-    try {
-      success = AbstractRequestHandler.offer(this, req).success();
-      return new TruncateTableResponse();
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).throwIfInstance(MetaException.class, NoSuchObjectException.class)
-          .convertIfInstance(IOException.class, MetaException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("truncate_table_req", success, ex,
-          TableName.getQualified(parsedDbName[CAT_NAME], parsedDbName[DB_NAME], req.getTableName()));
-    }
+    String qualifiedName = TableName.getQualified(parsedDbName[CAT_NAME], parsedDbName[DB_NAME], req.getTableName());
+    Handler.runAudited(
+        () -> startFunction("truncate_table_req", ": db=" + parsedDbName[DB_NAME] + " tab=" + req.getTableName()),
+        (result, ex) -> endFunction("truncate_table_req", Boolean.TRUE.equals(result), ex, qualifiedName),
+        () -> AbstractRequestHandler.offer(this, req).success(),
+        Handler.metaNoSuchIoToMeta());
+    return new TruncateTableResponse();
   }
 
   @Override
@@ -1258,11 +1153,11 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public GetTableResult get_table_req(GetTableRequest req) throws MetaException,
-      NoSuchObjectException {
+      NoSuchObjectException, TException {
     req.setCatName(req.isSetCatName() ? req.getCatName() : getDefaultCatalog(conf));
     return new GetTableResult(GetTableHandler.getTable(
         () -> startTableFunction("get_table", req.getCatName(), req.getDbName(), req.getTblName()),
-        this, req, false,
+        this, req,
         t -> endFunction("get_table", t.getLeft() != null, t.getRight(), req.getTblName())));
   }
 
@@ -1285,7 +1180,15 @@ public class HMSHandler extends PrivilegeHandler {
    */
   @Override
   public Table get_table_core(GetTableRequest getTableRequest) throws MetaException, NoSuchObjectException {
-    return GetTableHandler.getTable(null, this, getTableRequest, true, null);
+    try {
+      GetTableHandler.GetTableReq<GetTableRequest> internalRequest = new GetTableHandler.GetTableReq<>(getTableRequest);
+      internalRequest.rawTable = true;
+      GetTableHandler<GetTableRequest, Table> getTableHandler = AbstractRequestHandler.offer(this, internalRequest);
+      List<Table> tables = getTableHandler.getResult().result();
+      return tables.getFirst();
+    } catch (Exception e) {
+      throw handleException(e).throwIfInstance(NoSuchObjectException.class).defaultMetaException();
+    }
   }
 
   /**
@@ -1853,39 +1756,21 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public List<Table> get_all_materialized_view_objects_for_rewriting()
-      throws MetaException {
-    startFunction("get_all_materialized_view_objects_for_rewriting");
-
-    List<Table> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getAllMaterializedViewObjectsForRewriting(DEFAULT_CATALOG_NAME);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_all_materialized_view_objects_for_rewriting", ret != null, ex);
-    }
-    return ret;
+      throws MetaException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_all_materialized_view_objects_for_rewriting"),
+        (result, ex) -> endFunction("get_all_materialized_view_objects_for_rewriting", result != null, ex),
+        () -> getMS().getAllMaterializedViewObjectsForRewriting(DEFAULT_CATALOG_NAME));
   }
 
   @Override
   public List<String> get_materialized_views_for_rewriting(final String dbname)
-      throws MetaException {
-    startFunction("get_materialized_views_for_rewriting", ": db=" + dbname);
-
-    List<String> ret = null;
-    Exception ex = null;
+      throws MetaException, TException {
     String[] parsedDbName = parseDbName(dbname, conf);
-    try {
-      ret = getMS().getMaterializedViewsForRewriting(parsedDbName[CAT_NAME], parsedDbName[DB_NAME]);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_materialized_views_for_rewriting", ret != null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("get_materialized_views_for_rewriting", ": db=" + dbname),
+        (result, ex) -> endFunction("get_materialized_views_for_rewriting", result != null, ex),
+        () -> getMS().getMaterializedViewsForRewriting(parsedDbName[CAT_NAME], parsedDbName[DB_NAME]));
   }
 
   @Override
@@ -2089,29 +1974,26 @@ public class HMSHandler extends PrivilegeHandler {
         getDefaultCatalog(conf);
     String dbName = request.getDbName().toLowerCase();
     String tblName = request.getTblName().toLowerCase();
-    startFunction("get_table_statistics_req", ": table=" +
-        TableName.getQualified(catName, dbName, tblName));
-    TableStatsResult result = null;
     List<String> lowerCaseColNames = new ArrayList<>(request.getColNames().size());
     for (String colName : request.getColNames()) {
       lowerCaseColNames.add(colName.toLowerCase());
     }
-    try {
-      ColumnStatistics cs = getMS().getTableColumnStatistics(
-          catName, dbName, tblName, lowerCaseColNames,
-          request.getEngine(), request.getValidWriteIdList());
-      // Note: stats compliance is not propagated to the client; instead, we just return nothing
-      //       if stats are not compliant for now. This won't work for stats merging, but that
-      //       is currently only done on metastore size (see set_aggr...).
-      //       For some optimizations we might make use of incorrect stats that are "better than
-      //       nothing", so this may change in future.
-      result = new TableStatsResult((cs == null || cs.getStatsObj() == null
-          || (cs.isSetIsStatsCompliant() && !cs.isIsStatsCompliant()))
-          ? Lists.newArrayList() : cs.getStatsObj());
-    } finally {
-      endFunction("get_table_statistics_req", result == null, null, tblName);
-    }
-    return result;
+    return Handler.runAudited(
+        () -> startFunction("get_table_statistics_req", ": table=" + TableName.getQualified(catName, dbName, tblName)),
+        (result, ex) -> endFunction("get_table_statistics_req", result == null, ex, tblName),
+        () -> {
+          ColumnStatistics cs = getMS().getTableColumnStatistics(
+              catName, dbName, tblName, lowerCaseColNames,
+              request.getEngine(), request.getValidWriteIdList());
+          // Note: stats compliance is not propagated to the client; instead, we just return nothing
+          //       if stats are not compliant for now. This won't work for stats merging, but that
+          //       is currently only done on metastore size (see set_aggr...).
+          //       For some optimizations we might make use of incorrect stats that are "better than
+          //       nothing", so this may change in future.
+          return new TableStatsResult((cs == null || cs.getStatsObj() == null
+              || (cs.isSetIsStatsCompliant() && !cs.isIsStatsCompliant()))
+              ? Lists.newArrayList() : cs.getStatsObj());
+        });
   }
 
   @Override
@@ -2120,36 +2002,35 @@ public class HMSHandler extends PrivilegeHandler {
     String catName = request.isSetCatName() ? request.getCatName().toLowerCase() : getDefaultCatalog(conf);
     String dbName = request.getDbName().toLowerCase();
     String tblName = request.getTblName().toLowerCase();
-    startPartitionFunction("get_partitions_statistics_req", catName, dbName, tblName, request.getPartNames());
-
-    PartitionsStatsResult result = null;
     List<String> lowerCaseColNames = new ArrayList<>(request.getColNames().size());
     for (String colName : request.getColNames()) {
       lowerCaseColNames.add(colName.toLowerCase());
     }
-    try {
-      List<ColumnStatistics> stats = getMS().getPartitionColumnStatistics(
-          catName, dbName, tblName, request.getPartNames(), lowerCaseColNames,
-          request.getEngine(), request.isSetValidWriteIdList() ? request.getValidWriteIdList() : null);
-      Map<String, List<ColumnStatisticsObj>> map = new HashMap<>();
-      if (stats != null) {
-        for (ColumnStatistics stat : stats) {
-          // Note: stats compliance is not propagated to the client; instead, we just return nothing
-          //       if stats are not compliant for now. This won't work for stats merging, but that
-          //       is currently only done on metastore size (see set_aggr...).
-          //       For some optimizations we might make use of incorrect stats that are "better than
-          //       nothing", so this may change in future.
-          if (stat.isSetIsStatsCompliant() && !stat.isIsStatsCompliant()) {
-            continue;
+    return Handler.runAudited(
+        () -> startPartitionFunction("get_partitions_statistics_req", catName, dbName, tblName,
+            request.getPartNames()),
+        (result, ex) -> endFunction("get_partitions_statistics_req", result == null, ex, tblName),
+        () -> {
+          List<ColumnStatistics> stats = getMS().getPartitionColumnStatistics(
+              catName, dbName, tblName, request.getPartNames(), lowerCaseColNames,
+              request.getEngine(),
+              request.isSetValidWriteIdList() ? request.getValidWriteIdList() : null);
+          Map<String, List<ColumnStatisticsObj>> map = new HashMap<>();
+          if (stats != null) {
+            for (ColumnStatistics stat : stats) {
+              // Note: stats compliance is not propagated to the client; instead, we just return nothing
+              //       if stats are not compliant for now. This won't work for stats merging, but that
+              //       is currently only done on metastore size (see set_aggr...).
+              //       For some optimizations we might make use of incorrect stats that are "better than
+              //       nothing", so this may change in future.
+              if (stat.isSetIsStatsCompliant() && !stat.isIsStatsCompliant()) {
+                continue;
+              }
+              map.put(stat.getStatsDesc().getPartName(), stat.getStatsObj());
+            }
           }
-          map.put(stat.getStatsDesc().getPartName(), stat.getStatsObj());
-        }
-      }
-      result = new PartitionsStatsResult(map);
-    } finally {
-      endFunction("get_partitions_statistics_req", result == null, null, tblName);
-    }
-    return result;
+          return new PartitionsStatsResult(map);
+        });
   }
 
   @Override
@@ -2226,20 +2107,12 @@ public class HMSHandler extends PrivilegeHandler {
     if (req.getCat_name() != null) {
       parsedDbName[CAT_NAME] = normalizeIdentifier(req.getCat_name());
     }
-    startFunction("delete_column_statistics_req", ": table=" +
-        TableName.getQualified(parsedDbName[CAT_NAME], parsedDbName[DB_NAME], tableName) +
-        " partitions=" + req.getPart_names() + " column=" + colNames + " engine=" + engine);
-    Exception ex = null;
-    boolean ret = false;
-    try {
-      ret = AbstractRequestHandler.offer(this, req).success();
-      return ret;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).defaultTException();
-    } finally {
-      endFunction("delete_column_statistics_req", ret, ex, tableName);
-    }
+    return Handler.runAudited(
+        () -> startFunction("delete_column_statistics_req", ": table=" + TableName.getQualified(parsedDbName[CAT_NAME], parsedDbName[DB_NAME], tableName)
+            + " partitions=" + req.getPart_names() + " column=" + colNames + " engine=" + engine),
+        (result, ex) -> endFunction("delete_column_statistics_req", Boolean.TRUE.equals(result), ex,
+            tableName),
+        () -> AbstractRequestHandler.offer(this, req).success());
   }
 
   @Override
@@ -2396,205 +2269,117 @@ public class HMSHandler extends PrivilegeHandler {
   @Override
   public boolean isPartitionMarkedForEvent(final String db_name, final String tbl_name,
                                            final Map<String, String> partName, final PartitionEventType evtType) throws TException {
-
     String[] parsedDbName = parseDbName(db_name, conf);
-    startPartitionFunction("isPartitionMarkedForEvent", parsedDbName[CAT_NAME], parsedDbName[DB_NAME],
-        tbl_name, partName);
-    Boolean ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().isPartitionMarkedForEvent(parsedDbName[CAT_NAME], parsedDbName[DB_NAME],
-          tbl_name, partName, evtType);
-    } catch (Exception original) {
-      LOG.error("Exception caught for isPartitionMarkedForEvent ", original);
-      ex = original;
-      throw handleException(original).throwIfInstance(UnknownTableException.class, InvalidPartitionException.class)
-          .throwIfInstance(UnknownPartitionException.class,  MetaException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("isPartitionMarkedForEvent", ret != null, ex, tbl_name);
-    }
-
-    return ret;
+    return Handler.runAudited(
+        () -> startPartitionFunction("isPartitionMarkedForEvent", parsedDbName[CAT_NAME], parsedDbName[DB_NAME],
+            tbl_name, partName),
+        (result, ex) -> endFunction("isPartitionMarkedForEvent", result != null, ex, tbl_name),
+        () -> getMS().isPartitionMarkedForEvent(parsedDbName[CAT_NAME], parsedDbName[DB_NAME],
+            tbl_name, partName, evtType),
+        e -> handleException(e)
+            .throwIfInstance(UnknownTableException.class, InvalidPartitionException.class)
+            .throwIfInstance(UnknownPartitionException.class, MetaException.class)
+            .defaultTException());
   }
 
   @Override
   public void cancel_delegation_token(String token_str_form) throws TException {
-    startFunction("cancel_delegation_token");
-    boolean success = false;
-    Exception ex = null;
-    try {
-      HiveMetaStore.cancelDelegationToken(token_str_form);
-      success = true;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).convertIfInstance(IOException.class, MetaException.class).defaultMetaException();
-    } finally {
-      endFunction("cancel_delegation_token", success, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("cancel_delegation_token"),
+        (result, ex) -> endFunction("cancel_delegation_token", ex == null, ex),
+        () -> {
+          HiveMetaStore.cancelDelegationToken(token_str_form);
+          return null;
+        },
+        Handler.ioToMeta());
   }
 
   @Override
   public long renew_delegation_token(String token_str_form) throws TException {
-    startFunction("renew_delegation_token");
-    Long ret = null;
-    Exception ex = null;
-    try {
-      ret = HiveMetaStore.renewDelegationToken(token_str_form);
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).convertIfInstance(IOException.class, MetaException.class).defaultMetaException();
-    } finally {
-      endFunction("renew_delegation_token", ret != null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("renew_delegation_token"),
+        (result, ex) -> endFunction("renew_delegation_token", result != null, ex),
+        () -> HiveMetaStore.renewDelegationToken(token_str_form),
+        Handler.ioToMeta());
   }
 
   @Override
   public String get_delegation_token(String token_owner, String renewer_kerberos_principal_name)
       throws TException {
-    startFunction("get_delegation_token");
-    String ret = null;
-    Exception ex = null;
-    try {
-      ret =
-          HiveMetaStore.getDelegationToken(token_owner,
-              renewer_kerberos_principal_name, getIPAddress());
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).convertIfInstance(IOException.class, MetaException.class)
-          .convertIfInstance(InterruptedException.class, MetaException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("get_delegation_token", ret != null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("get_delegation_token"),
+        (result, ex) -> endFunction("get_delegation_token", result != null, ex),
+        () -> HiveMetaStore.getDelegationToken(token_owner, renewer_kerberos_principal_name, getIPAddress()),
+        Handler.ioOrInterruptedToMeta());
   }
 
   @Override
   public boolean add_token(String token_identifier, String delegation_token) throws TException {
-    startFunction("add_token", ": " + token_identifier);
-    boolean ret = false;
-    Exception ex = null;
-    try {
-      ret = getMS().addToken(token_identifier, delegation_token);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("add_token", ret == true, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("add_token", ": " + token_identifier),
+        (result, ex) -> endFunction("add_token", Boolean.TRUE.equals(result), ex),
+        () -> getMS().addToken(token_identifier, delegation_token));
   }
 
   @Override
   public boolean remove_token(String token_identifier) throws TException {
-    startFunction("remove_token", ": " + token_identifier);
-    boolean ret = false;
-    Exception ex = null;
-    try {
-      ret = getMS().removeToken(token_identifier);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("remove_token", ret == true, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("remove_token", ": " + token_identifier),
+        (result, ex) -> endFunction("remove_token", Boolean.TRUE.equals(result), ex),
+        () -> getMS().removeToken(token_identifier));
   }
 
   @Override
   public String get_token(String token_identifier) throws TException {
-    startFunction("get_token for", ": " + token_identifier);
-    String ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getToken(token_identifier);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_token", ret != null, ex);
-    }
-    //Thrift cannot return null result
+    String ret = Handler.runAudited(
+        () -> startFunction("get_token for", ": " + token_identifier),
+        (result, ex) -> endFunction("get_token", result != null, ex),
+        () -> getMS().getToken(token_identifier));
+    // Thrift cannot return null result
     return ret == null ? "" : ret;
   }
 
   @Override
   public List<String> get_all_token_identifiers() throws TException {
-    startFunction("get_all_token_identifiers.");
-    List<String> ret;
-    Exception ex = null;
-    try {
-      ret = getMS().getAllTokenIdentifiers();
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_all_token_identifiers.", ex == null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("get_all_token_identifiers."),
+        (result, ex) -> endFunction("get_all_token_identifiers.", ex == null, ex),
+        () -> getMS().getAllTokenIdentifiers());
   }
 
   @Override
   public int add_master_key(String key) throws TException {
-    startFunction("add_master_key.");
-    int ret;
-    Exception ex = null;
-    try {
-      ret = getMS().addMasterKey(key);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("add_master_key.", ex == null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("add_master_key."),
+        (result, ex) -> endFunction("add_master_key.", ex == null, ex),
+        () -> getMS().addMasterKey(key));
   }
 
   @Override
   public void update_master_key(int seq_number, String key) throws TException {
-    startFunction("update_master_key.");
-    Exception ex = null;
-    try {
-      getMS().updateMasterKey(seq_number, key);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("update_master_key.", ex == null, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("update_master_key."),
+        (result, ex) -> endFunction("update_master_key.", ex == null, ex),
+        () -> {
+          getMS().updateMasterKey(seq_number, key);
+          return null;
+        });
   }
 
   @Override
   public boolean remove_master_key(int key_seq) throws TException {
-    startFunction("remove_master_key.");
-    Exception ex = null;
-    boolean ret;
-    try {
-      ret = getMS().removeMasterKey(key_seq);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("remove_master_key.", ex == null, ex);
-    }
-    return ret;
+    return Handler.runAudited(
+        () -> startFunction("remove_master_key."),
+        (result, ex) -> endFunction("remove_master_key.", ex == null, ex),
+        () -> getMS().removeMasterKey(key_seq));
   }
 
   @Override
   public List<String> get_master_keys() throws TException {
-    startFunction("get_master_keys.");
-    Exception ex = null;
-    String [] ret = null;
-    try {
-      ret = getMS().getMasterKeys();
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_master_keys.", ret != null, ex);
-    }
+    String[] ret = Handler.runAudited(
+        () -> startFunction("get_master_keys."),
+        (result, ex) -> endFunction("get_master_keys.", result != null, ex),
+        () -> getMS().getMasterKeys());
     return Arrays.asList(ret);
   }
 
@@ -2784,7 +2569,7 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public List<String> get_functions(String dbName, String pattern)
-      throws MetaException {
+      throws MetaException, TException {
     String[] parsedDbName = parseDbName(dbName, conf);
     GetFunctionsRequest request = new GetFunctionsRequest(parsedDbName[DB_NAME]);
     request.setCatalogName(parsedDbName[CAT_NAME]);
@@ -2796,50 +2581,37 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public GetFunctionsResponse get_functions_req(GetFunctionsRequest req)
-      throws MetaException {
-    startFunction("get_functions_req", ": db=" + req.getDbName()
-        + " pat=" + req.getPattern());
-
-    RawStore ms = getMS();
-    Exception ex = null;
-    GetFunctionsResponse response = new GetFunctionsResponse();
+      throws MetaException, TException {
     String catName = req.isSetCatalogName() ? req.getCatalogName() : getDefaultCatalog(conf);
-    try {
-      List result = ms.getFunctionsRequest(catName, req.getDbName(),
-          req.getPattern(), req.isReturnNames());
-      if (req.isReturnNames()) {
-        response.setFunction_names(result);
-      } else {
-        response.setFunctions(result);
-      }
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_functions", ex == null, ex);
-    }
-    return response;
+    return Handler.runAudited(
+        () -> startFunction("get_functions_req", ": db=" + req.getDbName()
+            + " pat=" + req.getPattern()),
+        (result, ex) -> endFunction("get_functions", ex == null, ex),
+        () -> {
+          GetFunctionsResponse response = new GetFunctionsResponse();
+          List result = getMS().getFunctionsRequest(catName, req.getDbName(),
+              req.getPattern(), req.isReturnNames());
+          if (req.isReturnNames()) {
+            response.setFunction_names(result);
+          } else {
+            response.setFunctions(result);
+          }
+          return response;
+        });
   }
 
   @Override
   public GetAllFunctionsResponse get_all_functions()
-      throws MetaException {
+      throws MetaException, TException {
     GetAllFunctionsResponse response = new GetAllFunctionsResponse();
-    startFunction("get_all_functions");
-    RawStore ms = getMS();
-    List<Function> allFunctions = null;
-    Exception ex = null;
-    try {
-      // Leaving this as the 'hive' catalog (rather than choosing the default from the
-      // configuration) because all the default UDFs are in that catalog, and I think that's
-      // would people really want here.
-      allFunctions = ms.getAllFunctions(DEFAULT_CATALOG_NAME);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_all_functions", allFunctions != null, ex);
-    }
+    List<Function> allFunctions = Handler.runAudited(
+        () -> startFunction("get_all_functions"),
+        (result, ex) -> endFunction("get_all_functions", result != null, ex),
+        () ->
+            // Leaving this as the 'hive' catalog (rather than choosing the default from the
+            // configuration) because all the default UDFs are in that catalog, and I think that's
+            // would people really want here.
+            getMS().getAllFunctions(DEFAULT_CATALOG_NAME));
     response.setFunctions(allFunctions);
     return response;
   }
@@ -2849,27 +2621,18 @@ public class HMSHandler extends PrivilegeHandler {
     if (dbName == null || funcName == null) {
       throw new MetaException("Database and function name cannot be null.");
     }
-    startFunction("get_function", ": " + dbName + "." + funcName);
-
-    RawStore ms = getMS();
-    Function func = null;
-    Exception ex = null;
     String[] parsedDbName = parseDbName(dbName, conf);
-
-    try {
-      func = ms.getFunction(parsedDbName[CAT_NAME], parsedDbName[DB_NAME], funcName);
-      if (func == null) {
-        throw new NoSuchObjectException(
-            "Function " + dbName + "." + funcName + " does not exist");
-      }
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).throwIfInstance(NoSuchObjectException.class).defaultMetaException();
-    } finally {
-      endFunction("get_function", func != null, ex);
-    }
-
-    return func;
+    return Handler.runAudited(
+        () -> startFunction("get_function", ": " + dbName + "." + funcName),
+        (result, ex) -> endFunction("get_function", result != null, ex),
+        () -> {
+          Function func = getMS().getFunction(parsedDbName[CAT_NAME], parsedDbName[DB_NAME], funcName);
+          if (func == null) {
+            throw new NoSuchObjectException(
+                "Function " + dbName + "." + funcName + " does not exist");
+          }
+          return func;
+        });
   }
 
   @Override
@@ -2922,23 +2685,16 @@ public class HMSHandler extends PrivilegeHandler {
         getDefaultCatalog(conf);
     String dbName = request.getDbName().toLowerCase();
     String tblName = request.getTblName().toLowerCase();
-    startFunction("get_aggr_stats_for", ": table=" +
-        TableName.getQualified(catName, dbName, tblName));
-
     List<String> lowerCaseColNames = new ArrayList<>(request.getColNames().size());
     for (String colName : request.getColNames()) {
       lowerCaseColNames.add(colName.toLowerCase());
     }
-    AggrStats aggrStats = null;
-
-    try {
-      aggrStats = getMS().get_aggr_stats_for(catName, dbName, tblName,
-          request.getPartNames(), lowerCaseColNames, request.getEngine(), request.getValidWriteIdList());
-      return aggrStats;
-    } finally {
-      endFunction("get_aggr_stats_for", aggrStats == null, null, request.getTblName());
-    }
-
+    return Handler.runAudited(
+        () -> startFunction("get_aggr_stats_for", ": table=" + TableName.getQualified(catName, dbName, tblName)),
+        (result, ex) -> endFunction("get_aggr_stats_for", result == null, ex, request.getTblName()),
+        () -> getMS().get_aggr_stats_for(catName, dbName, tblName,
+            request.getPartNames(), lowerCaseColNames, request.getEngine(),
+            request.getValidWriteIdList()));
   }
 
   @Override
@@ -2951,23 +2707,13 @@ public class HMSHandler extends PrivilegeHandler {
     String catName = statsDesc.isSetCatName() ? statsDesc.getCatName() : getDefaultCatalog(conf);
     String dbName = statsDesc.getDbName();
     String tableName = statsDesc.getTableName();
-    startFunction("set_aggr_stats_for",
-        ": db=" + dbName + " tab=" + tableName + " needMerge=" + req.isNeedMerge() +
-            " isTblLevel=" + statsDesc.isIsTblLevel());
-    Exception ex = null;
-    boolean success = false;
-    try {
-      success = AbstractRequestHandler.offer(this, req).success();
-      return success;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).throwIfInstance(MetaException.class, NoSuchObjectException.class)
-          .convertIfInstance(IOException.class, MetaException.class)
-          .defaultMetaException();
-    } finally {
-      endFunction("set_aggr_stats_for", success, ex,
-          TableName.getQualified(catName, dbName, tableName));
-    }
+    return Handler.runAudited(
+        () -> startFunction("set_aggr_stats_for", ": db=" + dbName + " tab=" + tableName + " needMerge=" + req.isNeedMerge()
+            + " isTblLevel=" + statsDesc.isIsTblLevel()),
+        (result, ex) -> endFunction("set_aggr_stats_for", Boolean.TRUE.equals(result), ex,
+            TableName.getQualified(catName, dbName, tableName)),
+        () -> AbstractRequestHandler.offer(this, req).success(),
+        Handler.metaNoSuchIoToMeta());
   }
 
   @Override
@@ -3070,104 +2816,66 @@ public class HMSHandler extends PrivilegeHandler {
   @Override
   public PrimaryKeysResponse get_primary_keys(PrimaryKeysRequest request) throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startTableFunction("get_primary_keys", request.getCatName(), request.getDb_name(), request.getTbl_name());
-    List<SQLPrimaryKey> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getPrimaryKeys(request);
-    } catch (Exception e) {
-      ex = e;
-      throwMetaException(e);
-    } finally {
-      endFunction("get_primary_keys", ret != null, ex, request.getTbl_name());
-    }
+    List<SQLPrimaryKey> ret = Handler.runAudited(
+        () -> startTableFunction("get_primary_keys", request.getCatName(), request.getDb_name(),
+            request.getTbl_name()),
+        (result, ex) -> endFunction("get_primary_keys", result != null, ex, request.getTbl_name()),
+        () -> getMS().getPrimaryKeys(request));
     return new PrimaryKeysResponse(ret);
   }
 
   @Override
   public ForeignKeysResponse get_foreign_keys(ForeignKeysRequest request) throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startFunction("get_foreign_keys",
-        " : parentdb=" + request.getParent_db_name() + " parenttbl=" + request.getParent_tbl_name() + " foreigndb="
-            + request.getForeign_db_name() + " foreigntbl=" + request.getForeign_tbl_name());
-    List<SQLForeignKey> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getForeignKeys(request);
-    } catch (Exception e) {
-      ex = e;
-      throwMetaException(e);
-    } finally {
-      endFunction("get_foreign_keys", ret != null, ex, request.getForeign_tbl_name());
-    }
+    List<SQLForeignKey> ret = Handler.runAudited(
+        () -> startFunction("get_foreign_keys", " : parentdb=" + request.getParent_db_name() + " parenttbl=" + request.getParent_tbl_name()
+            + " foreigndb=" + request.getForeign_db_name() + " foreigntbl=" + request.getForeign_tbl_name()),
+        (result, ex) -> endFunction("get_foreign_keys", result != null, ex, request.getForeign_tbl_name()),
+        () -> getMS().getForeignKeys(request));
     return new ForeignKeysResponse(ret);
   }
 
   @Override
   public UniqueConstraintsResponse get_unique_constraints(UniqueConstraintsRequest request) throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startTableFunction("get_unique_constraints", request.getCatName(), request.getDb_name(), request.getTbl_name());
-    List<SQLUniqueConstraint> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getUniqueConstraints(request);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_unique_constraints", ret != null, ex, request.getTbl_name());
-    }
+    List<SQLUniqueConstraint> ret = Handler.runAudited(
+        () -> startTableFunction("get_unique_constraints", request.getCatName(), request.getDb_name(),
+            request.getTbl_name()),
+        (result, ex) -> endFunction("get_unique_constraints", result != null, ex, request.getTbl_name()),
+        () -> getMS().getUniqueConstraints(request));
     return new UniqueConstraintsResponse(ret);
   }
 
   @Override
   public NotNullConstraintsResponse get_not_null_constraints(NotNullConstraintsRequest request) throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startTableFunction("get_not_null_constraints", request.getCatName(), request.getDb_name(), request.getTbl_name());
-    List<SQLNotNullConstraint> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getNotNullConstraints(request);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_not_null_constraints", ret != null, ex, request.getTbl_name());
-    }
+    List<SQLNotNullConstraint> ret = Handler.runAudited(
+        () -> startTableFunction("get_not_null_constraints", request.getCatName(), request.getDb_name(),
+            request.getTbl_name()),
+        (result, ex) -> endFunction("get_not_null_constraints", result != null, ex, request.getTbl_name()),
+        () -> getMS().getNotNullConstraints(request));
     return new NotNullConstraintsResponse(ret);
   }
 
   @Override
   public DefaultConstraintsResponse get_default_constraints(DefaultConstraintsRequest request) throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startTableFunction("get_default_constraints", request.getCatName(), request.getDb_name(), request.getTbl_name());
-    List<SQLDefaultConstraint> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getDefaultConstraints(request);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_default_constraints", ret != null, ex, request.getTbl_name());
-    }
+    List<SQLDefaultConstraint> ret = Handler.runAudited(
+        () -> startTableFunction("get_default_constraints", request.getCatName(), request.getDb_name(),
+            request.getTbl_name()),
+        (result, ex) -> endFunction("get_default_constraints", result != null, ex, request.getTbl_name()),
+        () -> getMS().getDefaultConstraints(request));
     return new DefaultConstraintsResponse(ret);
   }
 
   @Override
   public CheckConstraintsResponse get_check_constraints(CheckConstraintsRequest request) throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startTableFunction("get_check_constraints", request.getCatName(), request.getDb_name(), request.getTbl_name());
-    List<SQLCheckConstraint> ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getCheckConstraints(request);
-    } catch (Exception e) {
-      ex = e;
-      throw newMetaException(e);
-    } finally {
-      endFunction("get_check_constraints", ret != null, ex, request.getTbl_name());
-    }
+    List<SQLCheckConstraint> ret = Handler.runAudited(
+        () -> startTableFunction("get_check_constraints", request.getCatName(), request.getDb_name(),
+            request.getTbl_name()),
+        (result, ex) -> endFunction("get_check_constraints", result != null, ex, request.getTbl_name()),
+        () -> getMS().getCheckConstraints(request));
     return new CheckConstraintsResponse(ret);
   }
 
@@ -3179,19 +2887,13 @@ public class HMSHandler extends PrivilegeHandler {
    */
   @Override
   public AllTableConstraintsResponse get_all_table_constraints(AllTableConstraintsRequest request)
-      throws TException, MetaException, NoSuchObjectException {
+      throws TException {
     request.setCatName(request.isSetCatName() ? request.getCatName() : getDefaultCatalog(conf));
-    startTableFunction("get_all_table_constraints", request.getCatName(), request.getDbName(), request.getTblName());
-    SQLAllTableConstraints ret = null;
-    Exception ex = null;
-    try {
-      ret = getMS().getAllTableConstraints(request);
-    } catch (Exception e) {
-      ex = e;
-      throwMetaException(e);
-    } finally {
-      endFunction("get_all_table_constraints", ret != null, ex, request.getTblName());
-    }
+    SQLAllTableConstraints ret = Handler.runAudited(
+        () -> startTableFunction("get_all_table_constraints", request.getCatName(), request.getDbName(),
+            request.getTblName()),
+        (result, ex) -> endFunction("get_all_table_constraints", result != null, ex, request.getTblName()),
+        () -> getMS().getAllTableConstraints(request));
     return new AllTableConstraintsResponse(ret);
   }
 
@@ -3205,234 +2907,184 @@ public class HMSHandler extends PrivilegeHandler {
       // If the default pool is not disabled, override the size with the specified parallelism.
       defaultPoolSize = plan.getQueryParallelism();
     }
-    try {
-      getMS().createResourcePlan(plan, request.getCopyFrom(), defaultPoolSize);
+    int poolSize = defaultPoolSize;
+    return Handler.runSilently(() -> {
+      getMS().createResourcePlan(plan, request.getCopyFrom(), poolSize);
       return new WMCreateResourcePlanResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to persist resource plan", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMGetResourcePlanResponse get_resource_plan(WMGetResourcePlanRequest request)
       throws NoSuchObjectException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       WMFullResourcePlan rp = getMS().getResourcePlan(request.getResourcePlanName(), request.getNs());
       WMGetResourcePlanResponse resp = new WMGetResourcePlanResponse();
       resp.setResourcePlan(rp);
       return resp;
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to retrieve resource plan", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMGetAllResourcePlanResponse get_all_resource_plans(WMGetAllResourcePlanRequest request)
       throws MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       WMGetAllResourcePlanResponse resp = new WMGetAllResourcePlanResponse();
       resp.setResourcePlans(getMS().getAllResourcePlans(request.getNs()));
       return resp;
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to retrieve resource plans", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMAlterResourcePlanResponse alter_resource_plan(WMAlterResourcePlanRequest request)
       throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-    try {
-      if (((request.isIsEnableAndActivate() ? 1 : 0) + (request.isIsReplace() ? 1 : 0)
-          + (request.isIsForceDeactivate() ? 1 : 0)) > 1) {
-        throw new MetaException("Invalid request; multiple flags are set");
-      }
-      WMAlterResourcePlanResponse response = new WMAlterResourcePlanResponse();
-      // This method will only return full resource plan when activating one,
-      // to give the caller the result atomically with the activation.
-      WMFullResourcePlan fullPlanAfterAlter = getMS().alterResourcePlan(
-          request.getResourcePlanName(), request.getNs(), request.getResourcePlan(),
-          request.isIsEnableAndActivate(), request.isIsForceDeactivate(), request.isIsReplace());
-      if (fullPlanAfterAlter != null) {
-        response.setFullResourcePlan(fullPlanAfterAlter);
-      }
-      return response;
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to alter resource plan", e);
-      throw e;
-    }
+    return Handler.runSilently(
+        () -> {
+          if (((request.isIsEnableAndActivate() ? 1 : 0) + (request.isIsReplace() ? 1 : 0)
+              + (request.isIsForceDeactivate() ? 1 : 0)) > 1) {
+            throw new MetaException("Invalid request; multiple flags are set");
+          }
+          WMAlterResourcePlanResponse response = new WMAlterResourcePlanResponse();
+          // This method will only return full resource plan when activating one,
+          // to give the caller the result atomically with the activation.
+          WMFullResourcePlan fullPlanAfterAlter = getMS().alterResourcePlan(
+              request.getResourcePlanName(), request.getNs(), request.getResourcePlan(),
+              request.isIsEnableAndActivate(), request.isIsForceDeactivate(), request.isIsReplace());
+          if (fullPlanAfterAlter != null) {
+            response.setFullResourcePlan(fullPlanAfterAlter);
+          }
+          return response;
+        });
   }
 
   @Override
   public WMGetActiveResourcePlanResponse get_active_resource_plan(
       WMGetActiveResourcePlanRequest request) throws MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       WMGetActiveResourcePlanResponse response = new WMGetActiveResourcePlanResponse();
       response.setResourcePlan(getMS().getActiveResourcePlan(request.getNs()));
       return response;
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to get active resource plan", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMValidateResourcePlanResponse validate_resource_plan(WMValidateResourcePlanRequest request)
       throws NoSuchObjectException, MetaException, TException {
-    try {
-      return getMS().validateResourcePlan(request.getResourcePlanName(), request.getNs());
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to validate resource plan", e);
-      throw e;
-    }
+    return Handler.runSilently(() -> getMS().validateResourcePlan(request.getResourcePlanName(), request.getNs()));
   }
 
   @Override
   public WMDropResourcePlanResponse drop_resource_plan(WMDropResourcePlanRequest request)
       throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().dropResourcePlan(request.getResourcePlanName(), request.getNs());
       return new WMDropResourcePlanResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to drop resource plan", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMCreateTriggerResponse create_wm_trigger(WMCreateTriggerRequest request)
       throws AlreadyExistsException, InvalidObjectException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().createWMTrigger(request.getTrigger());
       return new WMCreateTriggerResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to create trigger", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMAlterTriggerResponse alter_wm_trigger(WMAlterTriggerRequest request)
       throws NoSuchObjectException, InvalidObjectException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().alterWMTrigger(request.getTrigger());
       return new WMAlterTriggerResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to alter trigger", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMDropTriggerResponse drop_wm_trigger(WMDropTriggerRequest request)
       throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().dropWMTrigger(request.getResourcePlanName(), request.getTriggerName(), request.getNs());
       return new WMDropTriggerResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to drop trigger.", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMGetTriggersForResourePlanResponse get_triggers_for_resourceplan(
       WMGetTriggersForResourePlanRequest request)
       throws NoSuchObjectException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       List<WMTrigger> triggers =
           getMS().getTriggersForResourcePlan(request.getResourcePlanName(), request.getNs());
       WMGetTriggersForResourePlanResponse response = new WMGetTriggersForResourePlanResponse();
       response.setTriggers(triggers);
       return response;
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to retrieve triggers plans", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMAlterPoolResponse alter_wm_pool(WMAlterPoolRequest request)
       throws AlreadyExistsException, NoSuchObjectException, InvalidObjectException, MetaException,
       TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().alterPool(request.getPool(), request.getPoolPath());
       return new WMAlterPoolResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to alter WMPool", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMCreatePoolResponse create_wm_pool(WMCreatePoolRequest request)
       throws AlreadyExistsException, NoSuchObjectException, InvalidObjectException, MetaException,
       TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().createPool(request.getPool());
       return new WMCreatePoolResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to create WMPool", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMDropPoolResponse drop_wm_pool(WMDropPoolRequest request)
       throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().dropWMPool(request.getResourcePlanName(), request.getPoolPath(), request.getNs());
       return new WMDropPoolResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to drop WMPool", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMCreateOrUpdateMappingResponse create_or_update_wm_mapping(
       WMCreateOrUpdateMappingRequest request) throws AlreadyExistsException,
       NoSuchObjectException, InvalidObjectException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().createOrUpdateWMMapping(request.getMapping(), request.isUpdate());
       return new WMCreateOrUpdateMappingResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to create or update WMMapping", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMDropMappingResponse drop_wm_mapping(WMDropMappingRequest request)
       throws NoSuchObjectException, InvalidOperationException, MetaException, TException {
-    try {
+    return Handler.runSilently(() -> {
       getMS().dropWMMapping(request.getMapping());
       return new WMDropMappingResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to drop WMMapping", e);
-      throw e;
-    }
+    });
   }
 
   @Override
   public WMCreateOrDropTriggerToPoolMappingResponse create_or_drop_wm_trigger_to_pool_mapping(
       WMCreateOrDropTriggerToPoolMappingRequest request) throws AlreadyExistsException,
       NoSuchObjectException, InvalidObjectException, MetaException, TException {
-    try {
-      if (request.isDrop()) {
-        getMS().dropWMTriggerToPoolMapping(request.getResourcePlanName(),
-            request.getTriggerName(), request.getPoolPath(), request.getNs());
-      } else {
-        getMS().createWMTriggerToPoolMapping(request.getResourcePlanName(),
-            request.getTriggerName(), request.getPoolPath(), request.getNs());
-      }
-      return new WMCreateOrDropTriggerToPoolMappingResponse();
-    } catch (MetaException e) {
-      LOG.error("Exception while trying to create or drop pool mappings", e);
-      throw e;
-    }
+    return Handler.runSilently(
+        () -> {
+          if (request.isDrop()) {
+            getMS().dropWMTriggerToPoolMapping(request.getResourcePlanName(),
+                request.getTriggerName(), request.getPoolPath(), request.getNs());
+          } else {
+            getMS().createWMTriggerToPoolMapping(request.getResourcePlanName(),
+                request.getTriggerName(), request.getPoolPath(), request.getNs());
+          }
+          return new WMCreateOrDropTriggerToPoolMappingResponse();
+        });
   }
 
   @Override
@@ -3516,23 +3168,17 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public ISchema get_ischema(ISchemaName schemaName) throws TException {
-    startFunction("get_ischema", ": " + schemaName);
-    Exception ex = null;
-    ISchema schema = null;
-    try {
-      schema = getMS().getISchema(schemaName);
-      if (schema == null) {
-        throw new NoSuchObjectException("No schema named " + schemaName + " exists");
-      }
-      firePreEvent(new PreReadISchemaEvent(this, schema));
-      return schema;
-    } catch (MetaException e) {
-      LOG.error("Caught exception getting schema", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_ischema", schema != null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_ischema", ": " + schemaName),
+        (result, ex) -> endFunction("get_ischema", result != null, ex),
+        () -> {
+          ISchema schema = getMS().getISchema(schemaName);
+          if (schema == null) {
+            throw new NoSuchObjectException("No schema named " + schemaName + " exists");
+          }
+          firePreEvent(new PreReadISchemaEvent(this, schema));
+          return schema;
+        });
   }
 
   @Override
@@ -3625,65 +3271,47 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public SchemaVersion get_schema_version(SchemaVersionDescriptor version) throws TException {
-    startFunction("get_schema_version", ": " + version);
-    Exception ex = null;
-    SchemaVersion schemaVersion = null;
-    try {
-      schemaVersion = getMS().getSchemaVersion(version);
-      if (schemaVersion == null) {
-        throw new NoSuchObjectException("No schema version " + version + "exists");
-      }
-      firePreEvent(new PreReadhSchemaVersionEvent(this, Collections.singletonList(schemaVersion)));
-      return schemaVersion;
-    } catch (MetaException e) {
-      LOG.error("Caught exception getting schema version", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_schema_version", schemaVersion != null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_schema_version", ": " + version),
+        (result, ex) -> endFunction("get_schema_version", result != null, ex),
+        () -> {
+          SchemaVersion schemaVersion = getMS().getSchemaVersion(version);
+          if (schemaVersion == null) {
+            throw new NoSuchObjectException("No schema version " + version + "exists");
+          }
+          firePreEvent(new PreReadhSchemaVersionEvent(this, Collections.singletonList(schemaVersion)));
+          return schemaVersion;
+        });
   }
 
   @Override
   public SchemaVersion get_schema_latest_version(ISchemaName schemaName) throws TException {
-    startFunction("get_latest_schema_version", ": " + schemaName);
-    Exception ex = null;
-    SchemaVersion schemaVersion = null;
-    try {
-      schemaVersion = getMS().getLatestSchemaVersion(schemaName);
-      if (schemaVersion == null) {
-        throw new NoSuchObjectException("No versions of schema " + schemaName + "exist");
-      }
-      firePreEvent(new PreReadhSchemaVersionEvent(this, Collections.singletonList(schemaVersion)));
-      return schemaVersion;
-    } catch (MetaException e) {
-      LOG.error("Caught exception getting latest schema version", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_latest_schema_version", schemaVersion != null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_latest_schema_version", ": " + schemaName),
+        (result, ex) -> endFunction("get_latest_schema_version", result != null, ex),
+        () -> {
+          SchemaVersion schemaVersion = getMS().getLatestSchemaVersion(schemaName);
+          if (schemaVersion == null) {
+            throw new NoSuchObjectException("No versions of schema " + schemaName + "exist");
+          }
+          firePreEvent(new PreReadhSchemaVersionEvent(this, Collections.singletonList(schemaVersion)));
+          return schemaVersion;
+        });
   }
 
   @Override
   public List<SchemaVersion> get_schema_all_versions(ISchemaName schemaName) throws TException {
-    startFunction("get_all_schema_versions", ": " + schemaName);
-    Exception ex = null;
-    List<SchemaVersion> schemaVersions = null;
-    try {
-      schemaVersions = getMS().getAllSchemaVersion(schemaName);
-      if (schemaVersions == null) {
-        throw new NoSuchObjectException("No versions of schema " + schemaName + "exist");
-      }
-      firePreEvent(new PreReadhSchemaVersionEvent(this, schemaVersions));
-      return schemaVersions;
-    } catch (MetaException e) {
-      LOG.error("Caught exception getting all schema versions", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_all_schema_versions", schemaVersions != null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_all_schema_versions", ": " + schemaName),
+        (result, ex) -> endFunction("get_all_schema_versions", result != null, ex),
+        () -> {
+          List<SchemaVersion> schemaVersions = getMS().getAllSchemaVersion(schemaName);
+          if (schemaVersions == null) {
+            throw new NoSuchObjectException("No versions of schema " + schemaName + "exist");
+          }
+          firePreEvent(new PreReadhSchemaVersionEvent(this, schemaVersions));
+          return schemaVersions;
+        });
   }
 
   @Override
@@ -3729,24 +3357,18 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public FindSchemasByColsResp get_schemas_by_cols(FindSchemasByColsRqst rqst) throws TException {
-    startFunction("get_schemas_by_cols");
-    Exception ex = null;
-    List<SchemaVersion> schemaVersions = Collections.emptyList();
-    try {
-      schemaVersions = getMS().getSchemaVersionsByColumns(rqst.getColName(),
-          rqst.getColNamespace(), rqst.getType());
-      firePreEvent(new PreReadhSchemaVersionEvent(this, schemaVersions));
-      final List<SchemaVersionDescriptor> entries = new ArrayList<>(schemaVersions.size());
-      schemaVersions.forEach(schemaVersion -> entries.add(
-          new SchemaVersionDescriptor(schemaVersion.getSchema(), schemaVersion.getVersion())));
-      return new FindSchemasByColsResp(entries);
-    } catch (MetaException e) {
-      LOG.error("Caught exception doing schema version query", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_schemas_by_cols", !schemaVersions.isEmpty(), ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_schemas_by_cols"),
+        (result, ex) -> endFunction("get_schemas_by_cols", result != null && ex == null, ex),
+        () -> {
+          List<SchemaVersion> schemaVersions = getMS().getSchemaVersionsByColumns(rqst.getColName(),
+              rqst.getColNamespace(), rqst.getType());
+          firePreEvent(new PreReadhSchemaVersionEvent(this, schemaVersions));
+          final List<SchemaVersionDescriptor> entries = new ArrayList<>(schemaVersions.size());
+          schemaVersions.forEach(schemaVersion -> entries.add(
+              new SchemaVersionDescriptor(schemaVersion.getSchema(), schemaVersion.getVersion())));
+          return new FindSchemasByColsResp(entries);
+        });
   }
 
   @Override
@@ -3844,121 +3466,76 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public void add_serde(SerDeInfo serde) throws TException {
-    startFunction("create_serde", ": " + serde.getName());
-    Exception ex = null;
-    boolean success = false;
     RawStore ms = getMS();
-    try {
-      ms.openTransaction();
-      ms.addSerde(serde);
-      success = ms.commitTransaction();
-    } catch (MetaException|AlreadyExistsException e) {
-      LOG.error("Caught exception creating serde", e);
-      ex = e;
-      throw e;
-    } finally {
-      if (!success) {
-        ms.rollbackTransaction();
-      }
-      endFunction("create_serde", success, ex);
-    }
+    Handler.runAuditedWithTx(ms,
+        () -> startFunction("create_serde", ": " + serde.getName()),
+        (result, ex) -> endFunction("create_serde", ex == null, ex),
+        () -> {
+          ms.addSerde(serde);
+          return null;
+        });
   }
 
   @Override
   public SerDeInfo get_serde(GetSerdeRequest rqst) throws TException {
-    startFunction("get_serde", ": " + rqst);
-    Exception ex = null;
-    SerDeInfo serde = null;
-    try {
-      serde = getMS().getSerDeInfo(rqst.getSerdeName());
-      if (serde == null) {
-        throw new NoSuchObjectException("No serde named " + rqst.getSerdeName() + " exists");
-      }
-      return serde;
-    } catch (MetaException e) {
-      LOG.error("Caught exception getting serde", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_serde", serde != null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_serde", ": " + rqst),
+        (result, ex) -> endFunction("get_serde", result != null, ex),
+        () -> {
+          SerDeInfo serde = getMS().getSerDeInfo(rqst.getSerdeName());
+          if (serde == null) {
+            throw new NoSuchObjectException("No serde named " + rqst.getSerdeName() + " exists");
+          }
+          return serde;
+        });
   }
 
   public void add_runtime_stats(RuntimeStat stat) throws TException {
-    startFunction("store_runtime_stats");
-    Exception ex = null;
-    boolean success = false;
     RawStore ms = getMS();
-    try {
-      authorizeProxyPrivilege();
-      ms.openTransaction();
-      ms.addRuntimeStat(stat);
-      success = ms.commitTransaction();
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      if (!success) {
-        ms.rollbackTransaction();
-      }
-      endFunction("store_runtime_stats", success, ex);
-    }
+    Handler.runAuditedWithTx(ms,
+        () -> startFunction("store_runtime_stats"),
+        (result, ex) -> endFunction("store_runtime_stats", ex == null, ex),
+        () -> {
+          authorizeProxyPrivilege();
+          ms.addRuntimeStat(stat);
+          return null;
+        });
   }
 
   @Override
   public List<RuntimeStat> get_runtime_stats(GetRuntimeStatsRequest rqst) throws TException {
-    startFunction("get_runtime_stats");
-    Exception ex = null;
-    try {
-      authorizeProxyPrivilege();
-      List<RuntimeStat> res = getMS().getRuntimeStats(rqst.getMaxWeight(), rqst.getMaxCreateTime());
-      return res;
-    } catch (TException e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_runtime_stats", ex == null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_runtime_stats"),
+        (result, ex) -> endFunction("get_runtime_stats", ex == null, ex),
+        () -> {
+          authorizeProxyPrivilege();
+          return getMS().getRuntimeStats(rqst.getMaxWeight(), rqst.getMaxCreateTime());
+        });
   }
 
   @Override
   public ScheduledQueryPollResponse scheduled_query_poll(ScheduledQueryPollRequest request)
       throws MetaException, TException {
-    startFunction("scheduled_query_poll");
-    Exception ex = null;
-    try {
-      RawStore ms = getMS();
-      return ms.scheduledQueryPoll(request);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("scheduled_query_poll", ex == null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("scheduled_query_poll"),
+        (result, ex) -> endFunction("scheduled_query_poll", ex == null, ex),
+        () -> getMS().scheduledQueryPoll(request));
   }
 
   @Override
   public void scheduled_query_maintenance(ScheduledQueryMaintenanceRequest request) throws MetaException, TException {
-    startFunction("scheduled_query_poll");
-    Exception ex = null;
-    try {
-      String query = request.getScheduledQuery().getQuery();
-      ScheduledQueryMaintenanceRequestType requestType = request.getType();
-      RawStore ms = getMS();
-      ms.scheduledQueryMaintenance(request);
-      if (requestType == ScheduledQueryMaintenanceRequestType.DROP) {
-        abortReplCreatedOpenTxnsForDatabase(query);
-      }
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("scheduled_query_poll", ex == null, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("scheduled_query_poll"),
+        (result, ex) -> endFunction("scheduled_query_poll", ex == null, ex),
+        () -> {
+          String query = request.getScheduledQuery().getQuery();
+          ScheduledQueryMaintenanceRequestType requestType = request.getType();
+          getMS().scheduledQueryMaintenance(request);
+          if (requestType == ScheduledQueryMaintenanceRequestType.DROP) {
+            abortReplCreatedOpenTxnsForDatabase(query);
+          }
+          return null;
+        });
   }
 
   private void abortReplCreatedOpenTxnsForDatabase(String query) throws TException {
@@ -4001,215 +3578,150 @@ public class HMSHandler extends PrivilegeHandler {
 
   @Override
   public void scheduled_query_progress(ScheduledQueryProgressInfo info) throws MetaException, TException {
-    startFunction("scheduled_query_poll");
-    Exception ex = null;
-    try {
-      RawStore ms = getMS();
-      ms.scheduledQueryProgress(info);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("scheduled_query_poll", ex == null, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("scheduled_query_poll"),
+        (result, ex) -> endFunction("scheduled_query_poll", ex == null, ex),
+        () -> {
+          getMS().scheduledQueryProgress(info);
+          return null;
+        });
   }
 
   @Override
   public ScheduledQuery get_scheduled_query(ScheduledQueryKey scheduleKey) throws TException {
-    startFunction("get_scheduled_query");
-    Exception ex = null;
-    try {
-      return getMS().getScheduledQuery(scheduleKey);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_scheduled_query", ex == null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_scheduled_query"),
+        (result, ex) -> endFunction("get_scheduled_query", ex == null, ex),
+        () -> getMS().getScheduledQuery(scheduleKey));
   }
 
   @Override
   public void add_replication_metrics(ReplicationMetricList replicationMetricList) throws TException {
-    startFunction("add_replication_metrics");
-    Exception ex = null;
-    try {
-      authorizeProxyPrivilege();
-      getMS().addReplicationMetrics(replicationMetricList);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("add_replication_metrics", ex == null, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("add_replication_metrics"),
+        (result, ex) -> endFunction("add_replication_metrics", ex == null, ex),
+        () -> {
+          authorizeProxyPrivilege();
+          getMS().addReplicationMetrics(replicationMetricList);
+          return null;
+        });
   }
 
   @Override
   public ReplicationMetricList get_replication_metrics(GetReplicationMetricsRequest
                                                            getReplicationMetricsRequest) throws TException {
-    startFunction("get_replication_metrics");
-    Exception ex = null;
-    try {
-      authorizeProxyPrivilege();
-      return getMS().getReplicationMetrics(getReplicationMetricsRequest);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_replication_metrics", ex == null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_replication_metrics"),
+        (result, ex) -> endFunction("get_replication_metrics", ex == null, ex),
+        () -> {
+          authorizeProxyPrivilege();
+          return getMS().getReplicationMetrics(getReplicationMetricsRequest);
+        });
   }
 
   @Override
-  public void create_stored_procedure(StoredProcedure proc) throws NoSuchObjectException, MetaException {
-    startFunction("create_stored_procedure");
-    Exception ex = null;
-
+  public void create_stored_procedure(StoredProcedure proc) throws NoSuchObjectException, MetaException, TException {
     throwUnsupportedExceptionIfRemoteDB(proc.getDbName(), "create_stored_procedure");
-    try {
-      getMS().createOrUpdateStoredProcedure(proc);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("create_stored_procedure", ex == null, ex);
-    }
-  }
-
-  public StoredProcedure get_stored_procedure(StoredProcedureRequest request) throws MetaException, NoSuchObjectException {
-    startFunction("get_stored_procedure");
-    Exception ex = null;
-    try {
-      StoredProcedure proc = getMS().getStoredProcedure(request.getCatName(), request.getDbName(), request.getProcName());
-        if (proc == null) {
-          throw new NoSuchObjectException(
-                  "HPL/SQL StoredProcedure " + request.getDbName() + "." + request.getProcName() + " does not exist");
-        }
-        return proc;
-    } catch (Exception e) {
-      if (!(e instanceof NoSuchObjectException)) {
-        LOG.error("Caught exception", e);
-      }
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_stored_procedure", ex == null, ex);
-    }
+    Handler.runAudited(
+        () -> startFunction("create_stored_procedure"),
+        (result, ex) -> endFunction("create_stored_procedure", ex == null, ex),
+        () -> {
+          getMS().createOrUpdateStoredProcedure(proc);
+          return null;
+        });
   }
 
   @Override
-  public void drop_stored_procedure(StoredProcedureRequest request) throws MetaException {
-    startFunction("drop_stored_procedure");
-    Exception ex = null;
-    try {
-      getMS().dropStoredProcedure(request.getCatName(), request.getDbName(), request.getProcName());
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("drop_stored_procedure", ex == null, ex);
-    }
+  public StoredProcedure get_stored_procedure(StoredProcedureRequest request)
+      throws MetaException, NoSuchObjectException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_stored_procedure"),
+        (result, ex) -> endFunction("get_stored_procedure", ex == null, ex),
+        () -> {
+          StoredProcedure proc = getMS().getStoredProcedure(request.getCatName(), request.getDbName(),
+              request.getProcName());
+          if (proc == null) {
+            throw new NoSuchObjectException(
+                "HPL/SQL StoredProcedure " + request.getDbName() + "." + request.getProcName() + " does not exist");
+          }
+          return proc;
+        });
   }
 
   @Override
-  public List<String> get_all_stored_procedures(ListStoredProcedureRequest request) throws MetaException {
-    startFunction("get_all_stored_procedures");
-    Exception ex = null;
-    try {
-      return getMS().getAllStoredProcedures(request);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_all_stored_procedures", ex == null, ex);
-    }
+  public void drop_stored_procedure(StoredProcedureRequest request) throws MetaException, TException {
+    Handler.runAudited(
+        () -> startFunction("drop_stored_procedure"),
+        (result, ex) -> endFunction("drop_stored_procedure", ex == null, ex),
+        () -> {
+          getMS().dropStoredProcedure(request.getCatName(), request.getDbName(), request.getProcName());
+          return null;
+        });
   }
 
-public Package find_package(GetPackageRequest request) throws MetaException, NoSuchObjectException {
-    startFunction("find_package");
-    Exception ex = null;
-    try {
-      Package pkg = getMS().findPackage(request);
-      if (pkg == null) {
-        throw new NoSuchObjectException(
+  @Override
+  public List<String> get_all_stored_procedures(ListStoredProcedureRequest request) throws MetaException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_all_stored_procedures"),
+        (result, ex) -> endFunction("get_all_stored_procedures", ex == null, ex),
+        () -> getMS().getAllStoredProcedures(request));
+  }
+
+  @Override
+  public Package find_package(GetPackageRequest request) throws MetaException, NoSuchObjectException, TException {
+    return Handler.runAudited(
+        () -> startFunction("find_package"),
+        (result, ex) -> endFunction("find_package", ex == null, ex),
+        () -> {
+          Package pkg = getMS().findPackage(request);
+          if (pkg == null) {
+            throw new NoSuchObjectException(
                 "HPL/SQL package " + request.getDbName() + "." + request.getPackageName() + " does not exist");
-      }
-      return pkg;
-    } catch (Exception e) {
-      if (!(e instanceof NoSuchObjectException)) {
-        LOG.error("Caught exception", e);
-      }
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("find_package", ex == null, ex);
-    }
+          }
+          return pkg;
+        });
   }
 
-  public void add_package(AddPackageRequest request) throws MetaException, NoSuchObjectException {
-    startFunction("add_package");
-    Exception ex = null;
-    try {
-      getMS().addPackage(request);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("add_package", ex == null, ex);
-    }
+  @Override
+  public void add_package(AddPackageRequest request) throws MetaException, TException {
+    Handler.runAudited(
+        () -> startFunction("add_package"),
+        (result, ex) -> endFunction("add_package", ex == null, ex),
+        () -> {
+          getMS().addPackage(request);
+          return null;
+        });
   }
 
-  public List<String> get_all_packages(ListPackageRequest request) throws MetaException {
-    startFunction("get_all_packages");
-    Exception ex = null;
-    try {
-      return getMS().listPackages(request);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_all_packages", ex == null, ex);
-    }
+  @Override
+  public List<String> get_all_packages(ListPackageRequest request) throws MetaException, TException {
+    return Handler.runAudited(
+        () -> startFunction("get_all_packages"),
+        (result, ex) -> endFunction("get_all_packages", ex == null, ex),
+        () -> getMS().listPackages(request));
   }
 
-  public void drop_package(DropPackageRequest request) throws MetaException {
-    startFunction("drop_package");
-    Exception ex = null;
-    try {
-      getMS().dropPackage(request);
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("drop_package", ex == null, ex);
-    }
+  public void drop_package(DropPackageRequest request) throws TException {
+    Handler.runAudited(
+        () -> startFunction("drop_package"),
+        (result, ex) -> endFunction("drop_package", ex == null, ex),
+        () -> {
+          getMS().dropPackage(request);
+          return null;
+        });
   }
 
   @Override
   public List<WriteEventInfo> get_all_write_event_info(GetAllWriteEventInfoRequest request)
       throws TException {
-    startFunction("get_all_write_event_info");
-    Exception ex = null;
-    try {
-      authorizeProxyPrivilege();
-      List<WriteEventInfo> writeEventInfoList =
-          getMS().getAllWriteEventInfo(request.getTxnId(), request.getDbName(), request.getTableName());
-      return writeEventInfoList == null ? Collections.emptyList() : writeEventInfoList;
-    } catch (Exception e) {
-      LOG.error("Caught exception", e);
-      ex = e;
-      throw e;
-    } finally {
-      endFunction("get_all_write_event_info", ex == null, ex);
-    }
+    return Handler.runAudited(
+        () -> startFunction("get_all_write_event_info"),
+        (result, ex) -> endFunction("get_all_write_event_info", ex == null, ex),
+        () -> {
+          authorizeProxyPrivilege();
+          List<WriteEventInfo> writeEventInfoList = getMS().getAllWriteEventInfo(request.getTxnId(), request.getDbName(),
+              request.getTableName());
+          return writeEventInfoList == null ? Collections.emptyList() : writeEventInfoList;
+        });
   }
 }

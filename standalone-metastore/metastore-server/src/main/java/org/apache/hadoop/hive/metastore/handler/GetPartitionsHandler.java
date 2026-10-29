@@ -429,41 +429,27 @@ public class GetPartitionsHandler<R, T> extends AbstractRequestHandler<GetPartit
       Consumer<TableName> preHook,
       Consumer<Pair<GetPartitionsResult, Exception>> postHook,
       IHMSHandler handler, TableName tableName, R req) throws TException {
-    GetPartitionsResult result = null;
-    Exception ex = null;
-    try {
-      GetPartitionsRequest getPartitionsRequest = new GetPartitionsRequest(req, tableName);
-      preHook.accept(tableName);
-      GetPartitionsHandler<R, Partition> getPartsHandler =
-          AbstractRequestHandler.offer(handler, getPartitionsRequest);
-      result = getPartsHandler.getResult();
-      return result;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(ex).defaultTException();
-    } finally {
-      postHook.accept(Pair.of(result, ex));
-    }
+    return Handler.runAudited(() -> preHook.accept(tableName),
+        (result, ex) -> postHook.accept(Pair.of(result, ex)),
+        () -> {
+          GetPartitionsRequest getPartitionsRequest = new GetPartitionsRequest(req, tableName);
+          GetPartitionsHandler<R, Partition> getPartsHandler =
+              AbstractRequestHandler.offer(handler, getPartitionsRequest);
+          return getPartsHandler.getResult();
+        });
   }
 
   public static <R> GetPartitionsResult<String> getPartitionNames(Consumer<TableName> preExecutor,
       Consumer<Pair<GetPartitionsResult, Exception>> postConsumer, IHMSHandler handler, TableName tableName,
       R req) throws TException {
-    Exception ex = null;
-    GetPartitionsResult result = null;
-    try {
-      preExecutor.accept(tableName);
-      GetPartitionsRequest getPartitionsRequest = new GetPartitionsRequest(req, tableName, true);
-      GetPartitionsHandler<R, String> getPartNamesHandler =
-          AbstractRequestHandler.offer(handler, getPartitionsRequest);
-      result = getPartNamesHandler.getResult();
-      return result;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(ex).defaultTException();
-    } finally {
-      postConsumer.accept(Pair.of(result, ex));
-    }
+    return Handler.runAudited(() -> preExecutor.accept(tableName),
+        (result, ex) -> postConsumer.accept(Pair.of(result, ex)),
+        () -> {
+          GetPartitionsRequest getPartitionsRequest = new GetPartitionsRequest(req, tableName, true);
+          GetPartitionsHandler<R, String> getPartNamesHandler =
+              AbstractRequestHandler.offer(handler, getPartitionsRequest);
+          return getPartNamesHandler.getResult();
+        });
   }
 
   public static String validatePartVals(IHMSHandler handler,

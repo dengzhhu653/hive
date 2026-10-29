@@ -71,7 +71,6 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.hadoop.hive.metastore.ExceptionHandler.handleException;
 import static org.apache.hadoop.hive.metastore.ExceptionHandler.newMetaException;
 import static org.apache.hadoop.hive.metastore.conf.MetastoreConf.ConfVars.HIVE_IN_TEST;
 import static org.apache.hadoop.hive.metastore.utils.MetaStoreUtils.CAT_NAME;
@@ -507,7 +506,7 @@ public class GetTableHandler<R, T> extends
 
   public static class GetTableReq<Req> extends TAbstractBase {
     private final Req request;
-    private boolean rawTable;
+    public boolean rawTable;
     public GetTableReq(Req req) {
       this.request = req;
     }
@@ -580,54 +579,40 @@ public class GetTableHandler<R, T> extends
   public static <T, R> List<T> getTables(Runnable preHook,
       IHMSHandler handler, R req,
       Consumer<Pair<List<T>, Exception>> postHook) throws TException {
-    if (preHook != null) {
-      preHook.run();
-    }
-    List<T> tables = null;
-    Exception ex = null;
-    try {
+    return Handler.runAudited(() -> {
+      if (preHook != null) {
+        preHook.run();
+      }
+    }, (result, ex) -> {
+      if (postHook != null) {
+        postHook.accept(Pair.of(result, ex));
+      }
+    }, () -> {
       GetTableReq<R> internalRequest = new GetTableReq<>(req);
       GetTableHandler<GetTableRequest, T> getTablesHandler =
           AbstractRequestHandler.offer(handler, internalRequest);
-      tables = getTablesHandler.getResult().result();
-      return tables;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).defaultTException();
-    } finally {
-      if (postHook != null) {
-        Pair<List<T>, Exception> result = Pair.of(tables, ex);
-        postHook.accept(result);
-      }
-    }
+      return getTablesHandler.getResult().result();
+    });
   }
 
   public static Table getTable(Runnable preHook,
-      IHMSHandler handler, GetTableRequest request, boolean rawTable,
+      IHMSHandler handler, GetTableRequest request,
       Consumer<Pair<Table, Exception>> postHook)
-      throws NoSuchObjectException, MetaException {
-    if (preHook != null) {
-      preHook.run();
-    }
-    Table t = null;
-    Exception ex = null;
-    try {
+      throws TException {
+    return Handler.runAudited(() -> {
+      if (preHook != null) {
+        preHook.run();
+      }
+    }, (result, ex) -> {
+      if (postHook != null) {
+        postHook.accept(Pair.of(result, ex));
+      }
+    }, () -> {
       GetTableReq<GetTableRequest> internalRequest = new GetTableReq<>(request);
-      internalRequest.rawTable = rawTable;
       GetTableHandler<GetTableRequest, Table> getTableHandler =
           AbstractRequestHandler.offer(handler, internalRequest);
       List<Table> tables = getTableHandler.getResult().result();
-      t = tables.getFirst();
-      return t;
-    } catch (Exception e) {
-      ex = e;
-      throw handleException(e).throwIfInstance(NoSuchObjectException.class, MetaException.class)
-          .defaultMetaException();
-    } finally {
-      if (postHook != null) {
-        Pair<Table, Exception> result = Pair.of(t, ex);
-        postHook.accept(result);
-      }
-    }
+      return tables.getFirst();
+    });
   }
 }
